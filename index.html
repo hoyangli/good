@@ -646,14 +646,15 @@
     #custom-cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:99999;opacity:0;transition:opacity .15s;filter:drop-shadow(0 0 5px rgba(140,210,120,.85)) drop-shadow(0 0 12px rgba(140,210,120,.40));will-change:transform;}
     #custom-cursor.show{opacity:1;}
     #custom-cursor img{width:35px;height:35px;display:block;}
-    #page-loader{position:fixed;inset:0;background:#fff;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .7s ease;}
+    #page-loader{position:fixed;inset:0;background:#fff;z-index:99998;display:flex;align-items:center;justify-content:center;transition:opacity .7s ease;}
     #page-loader.loader-done{opacity:0;pointer-events:none;}
-    #loader-canvas{display:block;}
-    #loader-pct{margin-top:16px;font-size:12px;letter-spacing:3px;color:rgba(40,70,40,.45);}
+    #loader-wrap{position:relative;width:200px;height:200px;}
+    #loader-canvas{display:block;width:200px;height:200px;}
+    #loader-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;letter-spacing:3px;color:rgba(40,70,40,.45);white-space:nowrap;pointer-events:none;}
   </style>
 </head>
 <body>
-<div id="page-loader"><canvas id="loader-canvas"></canvas><div id="loader-pct">0%</div></div>
+<div id="page-loader"><div id="loader-wrap"><canvas id="loader-canvas"></canvas><div id="loader-pct">0%</div></div></div>
   <!-- 背景图片 -->
   <div class="bg-container">
     <img class="bg-img" src="研究生毕设/长图bg_tiny.png" alt="background">
@@ -1364,13 +1365,13 @@ nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
     ripples.push({r:2,o:0.6});
     tick();
     function enterSite(){
+      clearInterval(rt);
       if(typeof tryAuto==='function')tryAuto();
       loader.classList.add('loader-done');
       setTimeout(function(){cancelAnimationFrame(animId);loader.remove();},750);
     }
     window.addEventListener('load',function(){
-      done=true;pct=100;pctEl.textContent='100%';
-      clearInterval(rt);
+      done=true;pct=100;
       setTimeout(function(){
         pctEl.textContent='点击进入';
         pctEl.style.letterSpacing='4px';
