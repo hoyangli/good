@@ -1748,10 +1748,10 @@ window.addEventListener('pagehide',_saveState);window.addEventListener('beforeun
 function startM(){_applySeek();_aud.play().catch(function(){});on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}
 function stopM(){_aud.pause();on=false;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.remove('m-on');});}
 function nextTrack(){_seeked=true;_ti=(_ti+1)%_tracks.length;_aud.pause();_aud.src=_tracks[_ti];_aud.currentTime=0;if(on)_aud.play().catch(function(){});}
-var auto=false;function tryAuto(){if(auto)return;auto=true;startM();}
-window.addEventListener('load',function(){setTimeout(function(){try{tryAuto();}catch(e){}},400);});
-document.addEventListener('pointerdown',function f(){tryAuto();document.removeEventListener('pointerdown',f);},{once:true});
-document.addEventListener('click',function f(){tryAuto();document.removeEventListener('click',f);},{once:true});
+var auto=false;function tryAuto(){if(auto)return;_applySeek();var p=_aud.play();if(p&&typeof p.then==='function'){p.then(function(){auto=true;on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}).catch(function(){});}else{auto=true;on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}}
+window.addEventListener('load',function(){setTimeout(tryAuto,400);});
+document.addEventListener('pointerdown',tryAuto);
+document.addEventListener('click',tryAuto);
 document.querySelectorAll('.m-play').forEach(function(b){b.addEventListener('click',function(){on?stopM():startM();});});
 document.querySelectorAll('.m-next').forEach(function(b){b.addEventListener('click',nextTrack);});
 var _bc=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('nz_music'):null,_su=0;
