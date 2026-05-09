@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>念者语 - The Voice of the One You Miss</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'FZBYKSJW';
+      src: url('FZBYKSJW.TTF') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: 'FZHuaSKXTJW';
+      src: url('FZHuaSKXTJW-R.TTF') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'FZBYKSJW', 'FZHuaSKXTJW', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      -webkit-text-stroke-width: 0.2px;
+      overflow-x: hidden;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* 背景 */
+    .bg-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: -2;
+      overflow: hidden;
+    }
+
+    .bg-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: auto;
+      z-index: -2;
+      will-change: transform;
+      animation: slideLongImg 90s linear infinite;
+      transition: filter 0.3s ease;
+    }
+
+    @keyframes slideLongImg {
+      0% {
+        transform: translate3d(0, 0, 0);
+      }
+      100% {
+        transform: translate3d(-50%, 0, 0);
+      }
+    }
+
+    .bg-noise {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.53;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+
+    /* 飘动粒子效果 */
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 60%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      animation: float-particle linear infinite;
+    }
+
+    @keyframes float-particle {
+      0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100px) translateX(30px);
+        opacity: 0;
+      }
+    }
+
+    /* 导航栏 */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 32px;
+      z-index: 100;
+      background: transparent;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .nav-logo {
+      height: 28px;
+    }
+
+    .nav-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .nav-center-icon {
+      height: 32px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-moment {
+      display: flex;
+      padding: 10px 24px;
+      justify-content: center;
+      align-items: center;
+      gap: 6.25px;
+      border: 1px solid rgba(60, 80, 60, 0.3);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      color: #2a3a2a;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      letter-spacing: 1px;
+    }
+
+    .btn-moment:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(60, 80, 60, 0.5);
+    }
+
+    .btn-theme {
+      display: flex;
+      padding: 10px;
+      justify-content: center;
+      align-items: center;
+      gap: 7.143px;
+      border-radius: 50%;
+      border: 1px solid rgba(60, 80, 60, 0.3);
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      color: #2a3a2a;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-theme:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* 主内容 */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+      z-index: 10;
+    }
+
+    .hero-content {
+      text-align: center;
+      position: relative;
+      transform: scale(1.5);
+    }
+
+    .hero-bg-text {
+      font-family: 'FZBYKSJW', 'PingFang SC', sans-serif;
+      font-size: 30px;
+      background: linear-gradient(90deg, rgba(0, 27, 6, 0.20) 0%, rgba(0, 27, 6, 0.04) 49.52%, rgba(0, 27, 6, 0.20) 100%);
+      background: linear-gradient(90deg, color(display-p3 0 0.1036 0.0311 / 0.20) 0%, color(display-p3 0 0.1028 0.0312 / 0.04) 49.52%, color(display-p3 0 0.102 0.0314 / 0.20) 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -80%);
+      white-space: nowrap;
+      pointer-events: none;
+      font-weight: 400;
+      letter-spacing: 2px;
+    }
+
+    .hero-title {
+      font-size: 72px;
+      font-weight: normal;
+      background: linear-gradient(180deg, #001701 0%, #004700 100%);
+      background: linear-gradient(180deg, color(display-p3 0 0.0881 0.0113) 0%, color(display-p3 0 0.2729 0.0364) 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 12px;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 24px;
+    }
+
+    .hero-title-img {
+      width: 225px;
+      height: 211.496px;
+      position: relative;
+      z-index: 2;
+      margin: 0 auto 24px;
+    }
+    body.dark .hero-title-img { filter: invert(1) brightness(2); }
+
+    .hero-desc {
+      font-size: 16px;
+      color: #001A08;
+      letter-spacing: 3px;
+      margin-bottom: 56px;
+      font-weight: 400;
+    }
+
+    .btn-recall {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 40px;
+      border: none;
+      background: none;
+      color: #001A08;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 3px;
+      text-decoration: none;
+      position: relative;
+      z-index: 1;
+      overflow: visible;
+    }
+
+    .btn-recall-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .btn-recall-fill {
+      fill: white;
+      fill-opacity: 0.10;
+      transition: fill-opacity 0.35s ease;
+    }
+    .btn-recall:hover .btn-recall-fill { fill-opacity: 0.32; }
+
+    .btn-recall-border {
+      fill: none;
+      stroke: rgba(60, 80, 60, 0.50);
+      stroke-width: 1;
+    }
+    .btn-recall:hover .btn-recall-border { stroke: rgba(60, 80, 60, 0.88); }
+
+    .btn-recall-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      pointer-events: none;
+    }
+
+    .btn-recall .sparkle {
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    /* 暗色模式 */
+    body.dark .bg-img {
+      filter: brightness(0.35);
+    }
+
+    body.dark .nav-logo {
+      filter: invert(1) brightness(1.5);
+    }
+
+    body.dark .nav-center-icon {
+      filter: invert(1) brightness(1.5);
+    }
+
+    body.dark .btn-moment {
+      border-color: rgba(150, 180, 150, 0.3);
+      color: #FFF;
+      color: color(display-p3 1 1 1);
+      background: rgba(40, 50, 40, 0.4);
+    }
+
+    body.dark .btn-theme {
+      border-color: rgba(150, 180, 150, 0.3);
+      color: #FFF;
+      color: color(display-p3 1 1 1);
+      background: rgba(40, 50, 40, 0.4);
+    }
+
+    body.dark .hero-bg-text {
+      background: linear-gradient(90deg, rgba(143, 201, 158, 0.30) 0%, rgba(143, 201, 158, 0.06) 49.52%, rgba(143, 201, 158, 0.30) 100%);
+      background: linear-gradient(90deg, color(display-p3 0.6078 0.7804 0.6314 / 0.30) 0%, color(display-p3 0.6078 0.7804 0.6314 / 0.06) 49.52%, color(display-p3 0.6078 0.7804 0.6314 / 0.30) 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    body.dark .hero-title {
+      background: linear-gradient(180deg, #8EC89D 0%, #FFF 100%);
+      background: linear-gradient(180deg, color(display-p3 0.607 0.779 0.63) 0%, color(display-p3 1 1 1) 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    body.dark .hero-desc {
+      color: #FFF;
+      color: color(display-p3 1 1 1);
+      font-weight: normal;
+      opacity: 0.6;
+    }
+
+    body.dark .btn-recall { color: #FFF; color: color(display-p3 1 1 1); }
+    body.dark .btn-recall-fill { fill: rgba(255,255,255,0.08); }
+    body.dark .btn-recall-border { stroke: rgba(150, 180, 150, 0.35); }
+    body.dark .btn-recall:hover .btn-recall-border { stroke: rgba(150, 180, 150, 0.80); }
+
+    body.dark .particle {
+      background: rgba(180, 200, 180, 0.4);
+    }
+
+    body.dark .ripple-ring {
+      border-color: rgba(255, 255, 255, 0.45);
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 48px;
+        letter-spacing: 8px;
+      }
+
+      .hero-bg-text {
+        font-size: 32px;
+      }
+
+      .hero-desc {
+        font-size: 14px;
+        letter-spacing: 4px;
+      }
+
+      .navbar {
+        padding: 14px 16px;
+      }
+
+      .nav-logo-text {
+        font-size: 18px;
+      }
+
+      .btn-moment {
+        padding: 5px 12px;
+        font-size: 12px;
+      }
+    }
+
+    /* 涟漪效果 */
+    .ripple {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .ripple-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 1.5px solid #4a5a4a;
+      box-sizing: border-box;
+      opacity: 0;
+      transform: scale(0);
+      animation: ripple-expand 1.4s ease-out forwards;
+    }
+
+    .ripple-ring:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .ripple-ring:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes ripple-expand {
+      0% {
+        transform: scale(0);
+        opacity: 0.6;
+      }
+      60% {
+        opacity: 0.3;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+
+    /* 按钮涟漪效果 - 与空白处一致 */
+    .btn-ripple {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .btn-ripple .ripple-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      box-sizing: border-box;
+      opacity: 0;
+      transform: scale(0);
+      animation: btn-ripple-expand 1.4s ease-out forwards;
+    }
+
+    .btn-ripple .ripple-ring:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .btn-ripple .ripple-ring:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes btn-ripple-expand {
+      0% {
+        transform: scale(0);
+        opacity: 0.6;
+      }
+      60% {
+        opacity: 0.3;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+
+    /* 页面消散效果 - 只消散内容，背景保留 */
+    .page-fade-out .navbar,
+    .page-fade-out .particles,
+    .page-fade-out .hero {
+      animation: fadeOut 1s ease-out forwards;
+    }
+
+    .page-fade-out .bg-img {
+      animation: none;
+    }
+
+    .page-fade-out .bg-container {
+      animation: none;
+    }
+
+    @keyframes fadeOut {
+      0% {
+        opacity: 1;
+        filter: blur(0);
+      }
+      100% {
+        opacity: 0;
+        filter: blur(8px);
+        transform: scale(0.95);
+      }
+    }
+
+    /* 底部信息区 */
+    #bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 30px 40px;
+      z-index: 100;
+      font-family: 'FZBYKSJW', 'PingFang SC', sans-serif;
+    }
+
+    #bottom-left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #bottom-note-line1,
+    #bottom-note-line2 {
+      font-size: 14px;
+      color: rgba(0, 26, 8, 0.6);
+      letter-spacing: 1px;
+      line-height: 1.4;
+    }
+
+    #bottom-center {
+      font-size: 14px;
+      color: rgba(0, 26, 8, 0.5);
+    }
+
+    #bottom-right {
+      display: flex;
+      gap: 20px;
+    }
+
+    .bottom-link {
+      font-size: 14px;
+      color: rgba(0, 26, 8, 0.6);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      transition: color 0.3s ease;
+    }
+
+    .bottom-link:hover {
+      color: #001A08;
+    }
+
+    /* 暗色模式 - 底部信息 */
+    body.dark #bottom-note-line1,
+    body.dark #bottom-note-line2 {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    body.dark #bottom-center {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    body.dark .bottom-link {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    body.dark .bottom-link:hover {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* 音乐控件 */
+    body.dark .m-widget { background: rgba(40,55,40,.50); border-color: rgba(150,180,150,.30); }
+    body.dark .m-widget:hover { background: rgba(55,75,55,.70); }
+    body.dark .m-bars span { background: rgba(200,225,200,.60); }
+    body.dark .m-ctrl { color: rgba(200,225,200,.80); }
+    body.dark .m-ctrl:hover { color: rgba(220,245,220,.95); }
+    body.dark .m-label { color: rgba(200,225,200,.60); }
+
+    /* 流体效果 Canvas */
+    #fluid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .m-widget{pointer-events:all;cursor:default;position:relative;display:flex;align-items:center;justify-content:center;width:56px;height:34px;border-radius:17px;border:1px solid rgba(60,80,60,.28);background:rgba(255,255,255,.45);backdrop-filter:blur(8px);overflow:hidden;transition:background .25s,border-color .25s;flex-shrink:0;}
+    .m-widget:hover{background:rgba(255,255,255,.70);border-color:rgba(60,80,60,.45);}
+    .m-widget.m-on{border-color:rgba(100,150,100,.55);}
+    .m-bars{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:3px;transition:opacity .18s;}
+    .m-bars span{display:block;width:2px;height:3px;border-radius:2px;background:rgba(40,60,40,.55);}
+    .m-widget.m-on .m-bars span:nth-child(1){animation:mwave .52s ease-in-out 0s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(2){animation:mwave .68s ease-in-out .09s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(3){animation:mwave .56s ease-in-out .17s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(4){animation:mwave .64s ease-in-out .04s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(5){animation:mwave .58s ease-in-out .12s infinite alternate;}
+    @keyframes mwave{from{height:3px;opacity:.3}to{height:14px;opacity:.82}}
+    .m-widget:hover .m-bars{opacity:0;}
+    .m-ctrls{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 5px;opacity:0;transition:opacity .18s;}
+    .m-widget:hover .m-ctrls{opacity:1;}
+    .m-ctrl{background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(40,60,40,.78);padding:3px;border-radius:4px;transition:color .18s;}
+    .m-ctrl:hover{color:rgba(20,50,20,.95);}
+    .m-widget .icon-pause{display:none;}
+    .m-widget.m-on .icon-play{display:none;}
+    .m-widget.m-on .icon-pause{display:block;}
+    .m-label{font-size:8px;letter-spacing:1px;color:rgba(40,60,40,.55);min-width:8px;text-align:center;}
+    /* ── 自定义光标 ── */
+    *{cursor:none!important;}
+    #custom-cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:99999;opacity:0;transition:opacity .15s;filter:drop-shadow(0 0 5px rgba(140,210,120,.85)) drop-shadow(0 0 12px rgba(140,210,120,.40));will-change:transform;}
+    #custom-cursor.show{opacity:1;}
+    #custom-cursor img{width:35px;height:35px;display:block;}
+  </style>
+</head>
+<body>
+  <!-- 背景图片 -->
+  <div class="bg-container">
+    <img class="bg-img" src="研究生毕设/长图bg_tiny.png" alt="background">
+    <img class="bg-img" src="研究生毕设/长图bg_tiny.png" alt="background">
+  </div>
+  <div class="bg-noise"></div>
+
+  <!-- 流体效果 Canvas -->
+  <canvas id="fluid-canvas"></canvas>
+
+  <!-- 粒子效果 -->
+  <div class="particles" id="particles"></div>
+
+  <!-- 内容容器 -->
+  <div id="contentWrapper">
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <img class="nav-logo" src="研究生毕设/logo.png" alt="念者语">
+    </div>
+
+    <div class="nav-center">
+      <img class="nav-center-icon" src="研究生毕设/顶部图形.png" alt="icon">
+    </div>
+
+    <div class="nav-right">
+      <button class="btn-moment" id="btnMoment">凝固与TA的瞬间</button>
+      <div class="m-widget" id="music-widget">
+        <div class="m-bars"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="m-ctrls">
+          <button class="m-play m-ctrl" id="music-btn" title="播放/暂停">
+            <svg class="icon-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <svg class="icon-pause" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+          <span class="m-label"></span>
+          <button class="m-next m-ctrl" id="music-next-btn" title="下一首">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="5 4 15 12 5 20"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn-theme" id="themeToggle" title="切换主题">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21.5 14.0784C20.3003 14.7189 18.9301 15.0821 17.4751 15.0821C12.7491 15.0821 8.91792 11.2509 8.91792 6.52485C8.91792 5.06986 9.28105 3.69968 9.92163 2.5C5.66765 3.49698 2.5 7.31513 2.5 11.8731C2.5 17.1899 6.8101 21.5 12.1269 21.5C16.6849 21.5 20.503 18.3324 21.5 14.0784Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <section class="hero">
+    <div class="hero-content">
+      <img src="研究生毕设/首页标题.png" alt="首页标题" class="hero-title-img">
+      <p class="hero-desc">收集念者永存的记忆碎片</p>
+      <a href="detail.html" class="btn-recall" id="btnRecall">
+        <svg class="btn-recall-svg" viewBox="0 0 165 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path class="btn-recall-fill" fill-rule="evenodd" clip-rule="evenodd" d="M10 0.5H155C155 6.02285 159.477 10.5 165 10.5V29.5C159.477 29.5 155 33.9772 155 39.5H10C10 33.9772 5.52285 29.5 0 29.5V10.5C5.52285 10.5 10 6.02285 10 0.5Z"/>
+          <path class="btn-recall-border" fill-rule="evenodd" clip-rule="evenodd" d="M10 0.5H155C155 6.02285 159.477 10.5 165 10.5V29.5C159.477 29.5 155 33.9772 155 39.5H10C10 33.9772 5.52285 29.5 0 29.5V10.5C5.52285 10.5 10 6.02285 10 0.5Z"/>
+        </svg>
+        <span class="btn-recall-inner">
+          <span class="sparkle">✦</span>
+          <span>回忆与TA的细节</span>
+          <span class="sparkle">✦</span>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  </div>
+  </div>
+
+  <script>
+    // 粒子效果
+    function createParticles() {
+      const container = document.getElementById('particles');
+      const count = 30;
+
+      for (let i = 0; i < count; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.width = (Math.random() * 4 + 2) + 'px';
+        particle.style.height = particle.style.width;
+        particle.style.animationDuration = (Math.random() * 8 + 6) + 's';
+        particle.style.animationDelay = (Math.random() * 6) + 's';
+        particle.style.opacity = Math.random() * 0.5 + 0.2;
+        container.appendChild(particle);
+      }
+    }
+
+    createParticles();
+
+    // 主题切换
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      themeToggle.innerHTML = isDark
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 14.0784C20.3003 14.7189 18.9301 15.0821 17.4751 15.0821C12.7491 15.0821 8.91792 11.2509 8.91792 6.52485C8.91792 5.06986 9.28105 3.69968 9.92163 2.5C5.66765 3.49698 2.5 7.31513 2.5 11.8731C2.5 17.1899 6.8101 21.5 12.1269 21.5C16.6849 21.5 20.503 18.3324 21.5 14.0784Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    });
+
+    // 凝固与TA的瞬间 → 历史记录页
+    document.getElementById('btnMoment').addEventListener('click', () => {
+      document.getElementById('contentWrapper').classList.add('page-fade-out');
+      setTimeout(() => {
+        window.location.href = 'history.html';
+      }, 1000);
+    });
+
+    // 涟漪效果
+    let rippleColorToggle = true; // true: 当前颜色, false: 白色
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('button, a')) return;
+
+      const size = 250;
+      const ripple = document.createElement('div');
+      ripple.className = 'ripple';
+      ripple.style.width = size + 'px';
+      ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - size / 2) + 'px';
+      ripple.style.top = (e.clientY - size / 2) + 'px';
+
+      const currentColor = rippleColorToggle ? '#4a5a4a' : 'rgba(255, 255, 255, 0.45)';
+      rippleColorToggle = !rippleColorToggle;
+
+      for (let i = 0; i < 3; i++) {
+        const ring = document.createElement('div');
+        ring.className = 'ripple-ring';
+        ring.style.borderColor = currentColor;
+        ripple.appendChild(ring);
+      }
+
+      document.body.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 1800);
+    });
+
+    // 按钮涟漪 + 页面消散效果
+    const btnRecall = document.getElementById('btnRecall');
+    btnRecall.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      // 获取点击位置相对于按钮的坐标
+      const rect = btnRecall.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // 创建按钮内涟漪 - 与空白处一致的多环扩散效果，扩大一倍
+      const ripple = document.createElement('div');
+      ripple.className = 'btn-ripple';
+      ripple.style.width = '500px';
+      ripple.style.height = '500px';
+      ripple.style.left = x - 250 + 'px';
+      ripple.style.top = y - 250 + 'px';
+
+      // 颜色与空白处涟漪一致
+      const currentColor = rippleColorToggle ? '#4a5a4a' : 'rgba(255, 255, 255, 0.45)';
+      rippleColorToggle = !rippleColorToggle;
+
+      // 添加3个同心圆环
+      for (let i = 0; i < 3; i++) {
+        const ring = document.createElement('div');
+        ring.className = 'ripple-ring';
+        ring.style.borderColor = currentColor;
+        ripple.appendChild(ring);
+      }
+      btnRecall.appendChild(ripple);
+
+      // 动画结束后移除涟漪
+      setTimeout(() => ripple.remove(), 1800);
+
+      // 页面消散
+      document.getElementById('contentWrapper').classList.add('page-fade-out');
+
+      // 消散动画结束后跳转
+      setTimeout(() => {
+        window.location.href = 'detail.html';
+      }, 1000);
+    });
+
+    // ── 按钮磁吸 + 描边动画 + 音效 ──
+    (function() {
+      const btn = btnRecall;
+      const inner = btn.querySelector('.btn-recall-inner');
+      const borderPath = btn.querySelector('.btn-recall-border');
+      const fxAud = new Audio('研究生毕设/fx.MP3');
+      fxAud.volume = 1.0;
+
+      // 初始化描边 dash（从路径实际长度）
+      function initDash() {
+        const len = borderPath.getTotalLength();
+        borderPath.style.strokeDasharray = len;
+        borderPath.style.strokeDashoffset = len;
+        borderPath.style.transition = 'stroke-dashoffset 0.55s cubic-bezier(0.4,0,0.2,1), stroke 0.3s ease';
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDash);
+      } else {
+        initDash();
+      }
+
+      btn.addEventListener('mouseenter', () => {
+        borderPath.style.strokeDashoffset = '0';
+        fxAud.currentTime = 0;
+        fxAud.play().catch(() => {});
+      });
+
+      btn.addEventListener('mousemove', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const dx = (e.clientX - (rect.left + rect.width / 2)) * 0.18;
+        const dy = (e.clientY - (rect.top + rect.height / 2)) * 0.18;
+        inner.style.transform = `translate(${dx}px, ${dy}px)`;
+      });
+
+      btn.addEventListener('mouseleave', () => {
+        const len = borderPath.style.strokeDasharray;
+        borderPath.style.strokeDashoffset = len;
+        inner.style.transform = 'translate(0, 0)';
+        fxAud.pause();
+        fxAud.currentTime = 0;
+      });
+    })();
+
+    // ============================================
+    // 流体效果 - SplashCursor (Navier-Stokes)
+    // ============================================
+    (function () {
+      const canvas = document.getElementById('fluid-canvas');
+      if (!canvas) return;
+
+      const config = {
+        SIM_RESOLUTION: 128, DYE_RESOLUTION: 1440, CAPTURE_RESOLUTION: 512,
+        DENSITY_DISSIPATION: 3.5, VELOCITY_DISSIPATION: 2,
+        PRESSURE: 0.1, PRESSURE_ITERATIONS: 20, CURL: 3,
+        SPLAT_RADIUS: 0.2, SPLAT_FORCE: 6000,
+        SHADING: true, COLOR_UPDATE_SPEED: 10,
+        BACK_COLOR: { r: 0, g: 0, b: 0 }, TRANSPARENT: true,
+        RAINBOW_MODE: true, COLOR: '#ffffff'
+      };
+
+      function pointerPrototype() {
+        this.id = -1; this.texcoordX = 0; this.texcoordY = 0;
+        this.prevTexcoordX = 0; this.prevTexcoordY = 0;
+        this.deltaX = 0; this.deltaY = 0;
+        this.down = false; this.moved = false; this.color = [0, 0, 0];
+      }
+      let pointers = [new pointerPrototype()];
+
+      const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
+      let gl = canvas.getContext('webgl2', params);
+      const isWebGL2 = !!gl;
+      if (!isWebGL2) gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
+
+      let halfFloat, supportLinearFiltering;
+      if (isWebGL2) {
+        gl.getExtension('EXT_color_buffer_float');
+        supportLinearFiltering = gl.getExtension('OES_texture_float_linear');
+      } else {
+        halfFloat = gl.getExtension('OES_texture_half_float');
+        supportLinearFiltering = gl.getExtension('OES_texture_half_float_linear');
+      }
+      gl.clearColor(0, 0, 0, 1);
+      const halfFloatTexType = isWebGL2 ? gl.HALF_FLOAT : (halfFloat && halfFloat.HALF_FLOAT_OES);
+
+      function supportRenderTextureFormat(iF, f, t) {
+        const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, iF, 4, 4, 0, f, t, null);
+        const fbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        return gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      }
+      function getSupportedFormat(iF, f, t) {
+        if (!supportRenderTextureFormat(iF, f, t)) {
+          if (iF === gl.R16F) return getSupportedFormat(gl.RG16F, gl.RG, t);
+          if (iF === gl.RG16F) return getSupportedFormat(gl.RGBA16F, gl.RGBA, t);
+          return null;
+        }
+        return { internalFormat: iF, format: f };
+      }
+      let formatRGBA, formatRG, formatR;
+      if (isWebGL2) {
+        formatRGBA = getSupportedFormat(gl.RGBA16F, gl.RGBA, halfFloatTexType);
+        formatRG   = getSupportedFormat(gl.RG16F,   gl.RG,   halfFloatTexType);
+        formatR    = getSupportedFormat(gl.R16F,    gl.RED,  halfFloatTexType);
+      } else {
+        formatRGBA = getSupportedFormat(gl.RGBA, gl.RGBA, halfFloatTexType);
+        formatRG   = getSupportedFormat(gl.RGBA, gl.RGBA, halfFloatTexType);
+        formatR    = getSupportedFormat(gl.RGBA, gl.RGBA, halfFloatTexType);
+      }
+      if (!supportLinearFiltering) { config.DYE_RESOLUTION = 256; config.SHADING = false; }
+
+      function compileShader(type, source, keywords) {
+        if (keywords) source = keywords.map(k => '#define ' + k + '\n').join('') + source;
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source); gl.compileShader(shader);
+        return shader;
+      }
+      function createProgram(vs, fs) {
+        const p = gl.createProgram();
+        gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
+        return p;
+      }
+      function getUniforms(program) {
+        const u = [];
+        const n = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+        for (let i = 0; i < n; i++) {
+          const name = gl.getActiveUniform(program, i).name;
+          u[name] = gl.getUniformLocation(program, name);
+        }
+        return u;
+      }
+      class Material {
+        constructor(vs, fsSrc) {
+          this.vertexShader = vs; this.fragmentShaderSource = fsSrc;
+          this.programs = []; this.activeProgram = null; this.uniforms = [];
+        }
+        setKeywords(kw) {
+          let hash = 0;
+          kw.forEach(k => { for (let i = 0; i < k.length; i++) { hash = (hash << 5) - hash + k.charCodeAt(i); hash |= 0; } });
+          if (!this.programs[hash]) {
+            const fs = compileShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource, kw);
+            this.programs[hash] = createProgram(this.vertexShader, fs);
+          }
+          if (this.programs[hash] === this.activeProgram) return;
+          this.uniforms = getUniforms(this.programs[hash]);
+          this.activeProgram = this.programs[hash];
+        }
+        bind() { gl.useProgram(this.activeProgram); }
+      }
+      class GLProgram {
+        constructor(vs, fs) {
+          this.program = createProgram(vs, fs);
+          this.uniforms = getUniforms(this.program);
+        }
+        bind() { gl.useProgram(this.program); }
+      }
+
+      const baseVertexShader = compileShader(gl.VERTEX_SHADER, `
+        precision highp float;
+        attribute vec2 aPosition;
+        varying vec2 vUv; varying vec2 vL; varying vec2 vR; varying vec2 vT; varying vec2 vB;
+        uniform vec2 texelSize;
+        void main () {
+          vUv = aPosition * 0.5 + 0.5;
+          vL = vUv - vec2(texelSize.x, 0.0); vR = vUv + vec2(texelSize.x, 0.0);
+          vT = vUv + vec2(0.0, texelSize.y); vB = vUv - vec2(0.0, texelSize.y);
+          gl_Position = vec4(aPosition, 0.0, 1.0);
+        }`);
+
+      const copyShader     = compileShader(gl.FRAGMENT_SHADER, `precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;uniform sampler2D uTexture;void main(){gl_FragColor=texture2D(uTexture,vUv);}`);
+      const clearShader    = compileShader(gl.FRAGMENT_SHADER, `precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;uniform sampler2D uTexture;uniform float value;void main(){gl_FragColor=value*texture2D(uTexture,vUv);}`);
+      const splatShader    = compileShader(gl.FRAGMENT_SHADER, `precision highp float;precision highp sampler2D;varying vec2 vUv;uniform sampler2D uTarget;uniform float aspectRatio;uniform vec3 color;uniform vec2 point;uniform float radius;void main(){vec2 p=vUv-point.xy;p.x*=aspectRatio;vec3 splat=exp(-dot(p,p)/radius)*color;vec3 base=texture2D(uTarget,vUv).xyz;gl_FragColor=vec4(base+splat,1.0);}`);
+      const divergenceShader = compileShader(gl.FRAGMENT_SHADER, `precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uVelocity;void main(){float L=texture2D(uVelocity,vL).x,R=texture2D(uVelocity,vR).x,T=texture2D(uVelocity,vT).y,B=texture2D(uVelocity,vB).y;vec2 C=texture2D(uVelocity,vUv).xy;if(vL.x<0.0)L=-C.x;if(vR.x>1.0)R=-C.x;if(vT.y>1.0)T=-C.y;if(vB.y<0.0)B=-C.y;gl_FragColor=vec4(0.5*(R-L+T-B),0,0,1);}`);
+      const curlShader     = compileShader(gl.FRAGMENT_SHADER, `precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uVelocity;void main(){float L=texture2D(uVelocity,vL).y,R=texture2D(uVelocity,vR).y,T=texture2D(uVelocity,vT).x,B=texture2D(uVelocity,vB).x;gl_FragColor=vec4(0.5*(R-L-T+B),0,0,1);}`);
+      const vorticityShader = compileShader(gl.FRAGMENT_SHADER, `precision highp float;precision highp sampler2D;varying vec2 vUv;varying vec2 vL;varying vec2 vR;varying vec2 vT;varying vec2 vB;uniform sampler2D uVelocity;uniform sampler2D uCurl;uniform float curl;uniform float dt;void main(){float L=texture2D(uCurl,vL).x,R=texture2D(uCurl,vR).x,T=texture2D(uCurl,vT).x,B=texture2D(uCurl,vB).x,C=texture2D(uCurl,vUv).x;vec2 force=0.5*vec2(abs(T)-abs(B),abs(R)-abs(L));force/=length(force)+0.0001;force*=curl*C;force.y*=-1.0;vec2 vel=texture2D(uVelocity,vUv).xy;vel+=force*dt;vel=min(max(vel,-1000.0),1000.0);gl_FragColor=vec4(vel,0,1);}`);
+      const pressureShader  = compileShader(gl.FRAGMENT_SHADER, `precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uPressure;uniform sampler2D uDivergence;void main(){float L=texture2D(uPressure,vL).x,R=texture2D(uPressure,vR).x,T=texture2D(uPressure,vT).x,B=texture2D(uPressure,vB).x,div=texture2D(uDivergence,vUv).x;gl_FragColor=vec4((L+R+B+T-div)*0.25,0,0,1);}`);
+      const gradientSubtractShader = compileShader(gl.FRAGMENT_SHADER, `precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uPressure;uniform sampler2D uVelocity;void main(){float L=texture2D(uPressure,vL).x,R=texture2D(uPressure,vR).x,T=texture2D(uPressure,vT).x,B=texture2D(uPressure,vB).x;vec2 vel=texture2D(uVelocity,vUv).xy;vel.xy-=vec2(R-L,T-B);gl_FragColor=vec4(vel,0,1);}`);
+      const advectionShader = compileShader(gl.FRAGMENT_SHADER, `
+        precision highp float; precision highp sampler2D;
+        varying vec2 vUv; uniform sampler2D uVelocity,uSource;
+        uniform vec2 texelSize,dyeTexelSize; uniform float dt,dissipation;
+        vec4 bilerp(sampler2D sam,vec2 uv,vec2 ts){
+          vec2 st=uv/ts-0.5,iuv=floor(st),fuv=fract(st);
+          vec4 a=texture2D(sam,(iuv+vec2(0.5,0.5))*ts),b=texture2D(sam,(iuv+vec2(1.5,0.5))*ts),
+               c=texture2D(sam,(iuv+vec2(0.5,1.5))*ts),d=texture2D(sam,(iuv+vec2(1.5,1.5))*ts);
+          return mix(mix(a,b,fuv.x),mix(c,d,fuv.x),fuv.y);
+        }
+        void main(){
+          #ifdef MANUAL_FILTERING
+            vec2 coord=vUv-dt*bilerp(uVelocity,vUv,texelSize).xy*texelSize;
+            vec4 result=bilerp(uSource,coord,dyeTexelSize);
+          #else
+            vec2 coord=vUv-dt*texture2D(uVelocity,vUv).xy*texelSize;
+            vec4 result=texture2D(uSource,coord);
+          #endif
+          gl_FragColor=result/(1.0+dissipation*dt);
+        }`, supportLinearFiltering ? null : ['MANUAL_FILTERING']);
+
+      const displayShaderSource = `
+        precision highp float; precision highp sampler2D;
+        varying vec2 vUv,vL,vR,vT,vB;
+        uniform sampler2D uTexture; uniform vec2 texelSize;
+        void main(){
+          vec3 c=texture2D(uTexture,vUv).rgb;
+          #ifdef SHADING
+            float dx=length(texture2D(uTexture,vR).rgb)-length(texture2D(uTexture,vL).rgb);
+            float dy=length(texture2D(uTexture,vT).rgb)-length(texture2D(uTexture,vB).rgb);
+            vec3 n=normalize(vec3(dx,dy,length(texelSize)));
+            c*=clamp(dot(n,vec3(0,0,1))+0.7,0.7,1.0);
+          #endif
+          gl_FragColor=vec4(c,max(c.r,max(c.g,c.b)));
+        }`;
+
+      const blit = (() => {
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,-1,1,1,1,1,-1]), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1,2,0,2,3]), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(0);
+        return (target, clear = false) => {
+          if (target == null) { gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight); gl.bindFramebuffer(gl.FRAMEBUFFER,null); }
+          else { gl.viewport(0,0,target.width,target.height); gl.bindFramebuffer(gl.FRAMEBUFFER,target.fbo); }
+          if (clear) { gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+          gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        };
+      })();
+
+      let dye, velocity, divergence, curl, pressure;
+      const copyProgram            = new GLProgram(baseVertexShader, copyShader);
+      const clearProgram           = new GLProgram(baseVertexShader, clearShader);
+      const splatProgram           = new GLProgram(baseVertexShader, splatShader);
+      const advectionProgram       = new GLProgram(baseVertexShader, advectionShader);
+      const divergenceProgram      = new GLProgram(baseVertexShader, divergenceShader);
+      const curlProgram            = new GLProgram(baseVertexShader, curlShader);
+      const vorticityProgram       = new GLProgram(baseVertexShader, vorticityShader);
+      const pressureProgram        = new GLProgram(baseVertexShader, pressureShader);
+      const gradienSubtractProgram = new GLProgram(baseVertexShader, gradientSubtractShader);
+      const displayMaterial        = new Material(baseVertexShader, displayShaderSource);
+
+      function getResolution(res) {
+        let ar = gl.drawingBufferWidth / gl.drawingBufferHeight;
+        if (ar < 1) ar = 1 / ar;
+        const min = Math.round(res), max = Math.round(res * ar);
+        return gl.drawingBufferWidth > gl.drawingBufferHeight ? { width: max, height: min } : { width: min, height: max };
+      }
+      function createFBO(w, h, iF, f, t, param) {
+        gl.activeTexture(gl.TEXTURE0);
+        const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, param);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, param);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, iF, w, h, 0, f, t, null);
+        const fbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        gl.viewport(0,0,w,h); gl.clear(gl.COLOR_BUFFER_BIT);
+        return { texture: tex, fbo, width: w, height: h, texelSizeX: 1/w, texelSizeY: 1/h,
+          attach(id) { gl.activeTexture(gl.TEXTURE0+id); gl.bindTexture(gl.TEXTURE_2D, tex); return id; } };
+      }
+      function createDoubleFBO(w, h, iF, f, t, param) {
+        let f1 = createFBO(w,h,iF,f,t,param), f2 = createFBO(w,h,iF,f,t,param);
+        return { width:w, height:h, texelSizeX:f1.texelSizeX, texelSizeY:f1.texelSizeY,
+          get read(){return f1;}, set read(v){f1=v;}, get write(){return f2;}, set write(v){f2=v;},
+          swap(){const t=f1;f1=f2;f2=t;} };
+      }
+      function resizeFBO(target, w, h, iF, f, t, param) {
+        const n = createFBO(w,h,iF,f,t,param);
+        copyProgram.bind(); gl.uniform1i(copyProgram.uniforms.uTexture, target.attach(0));
+        blit(n); return n;
+      }
+      function resizeDoubleFBO(target, w, h, iF, f, t, param) {
+        if (target.width===w && target.height===h) return target;
+        target.read  = resizeFBO(target.read,  w, h, iF, f, t, param);
+        target.write = createFBO(w, h, iF, f, t, param);
+        target.width=w; target.height=h; target.texelSizeX=1/w; target.texelSizeY=1/h;
+        return target;
+      }
+      function initFramebuffers() {
+        const simRes = getResolution(config.SIM_RESOLUTION), dyeRes = getResolution(config.DYE_RESOLUTION);
+        const texType = halfFloatTexType, filtering = supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
+        gl.disable(gl.BLEND);
+        dye      = dye      ? resizeDoubleFBO(dye,      dyeRes.width,  dyeRes.height,  formatRGBA.internalFormat, formatRGBA.format, texType, filtering)
+                            : createDoubleFBO(dyeRes.width,  dyeRes.height,  formatRGBA.internalFormat, formatRGBA.format, texType, filtering);
+        velocity = velocity ? resizeDoubleFBO(velocity,  simRes.width,  simRes.height,  formatRG.internalFormat,   formatRG.format,   texType, filtering)
+                            : createDoubleFBO(simRes.width,  simRes.height,  formatRG.internalFormat,   formatRG.format,   texType, filtering);
+        divergence = createFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, texType, gl.NEAREST);
+        curl       = createFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, texType, gl.NEAREST);
+        pressure   = createDoubleFBO(simRes.width, simRes.height, formatR.internalFormat, formatR.format, texType, gl.NEAREST);
+      }
+
+      function HSVtoRGB(h, s, v) {
+        const i=~~(h*6), f=h*6-i, p=v*(1-s), q=v*(1-f*s), t=v*(1-(1-f)*s);
+        const m=[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]];
+        const [r,g,b] = m[i%6]; return {r,g,b};
+      }
+      function generateColor() {
+        const h = 0.15 + Math.random() * 0.52; // 黄→绿→青→蓝，排除粉紫红
+        const c = HSVtoRGB(h, 0.55, 0.82); // 降饱和混白、降明度去荧光
+        c.r *= 0.15; c.g *= 0.15; c.b *= 0.15; return c;
+      }
+      function wrap(v, mn, mx) { const r=mx-mn; return r===0?mn:((v-mn)%r)+mn; }
+      function scaleByPixelRatio(v) { return Math.floor(v * (window.devicePixelRatio||1)); }
+
+      function correctRadius(r) { const ar=canvas.width/canvas.height; return ar>1?r*ar:r; }
+      function correctDeltaX(d) { const ar=canvas.width/canvas.height; return ar<1?d*ar:d; }
+      function correctDeltaY(d) { const ar=canvas.width/canvas.height; return ar>1?d/ar:d; }
+
+      function splat(x, y, dx, dy, color) {
+        splatProgram.bind();
+        gl.uniform1i(splatProgram.uniforms.uTarget, velocity.read.attach(0));
+        gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width/canvas.height);
+        gl.uniform2f(splatProgram.uniforms.point, x, y);
+        gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0);
+        gl.uniform1f(splatProgram.uniforms.radius, correctRadius(config.SPLAT_RADIUS/100));
+        blit(velocity.write); velocity.swap();
+        gl.uniform1i(splatProgram.uniforms.uTarget, dye.read.attach(0));
+        gl.uniform3f(splatProgram.uniforms.color, color.r, color.g, color.b);
+        blit(dye.write); dye.swap();
+      }
+      function splatPointer(p) { splat(p.texcoordX, p.texcoordY, p.deltaX*config.SPLAT_FORCE, p.deltaY*config.SPLAT_FORCE, p.color); }
+      function clickSplat(p) {
+        const c=generateColor(); c.r*=10; c.g*=10; c.b*=10;
+        splat(p.texcoordX, p.texcoordY, 10*(Math.random()-.5), 30*(Math.random()-.5), c);
+      }
+
+      function updatePointerDownData(p, id, x, y) {
+        p.id=id; p.down=true; p.moved=false;
+        p.texcoordX=x/canvas.width; p.texcoordY=1-y/canvas.height;
+        p.prevTexcoordX=p.texcoordX; p.prevTexcoordY=p.texcoordY;
+        p.deltaX=0; p.deltaY=0; p.color=generateColor();
+      }
+      function updatePointerMoveData(p, x, y) {
+        p.prevTexcoordX=p.texcoordX; p.prevTexcoordY=p.texcoordY;
+        p.texcoordX=x/canvas.width; p.texcoordY=1-y/canvas.height;
+        p.deltaX=correctDeltaX(p.texcoordX-p.prevTexcoordX);
+        p.deltaY=correctDeltaY(p.texcoordY-p.prevTexcoordY);
+        p.moved=Math.abs(p.deltaX)>0||Math.abs(p.deltaY)>0;
+      }
+
+      function step(dt) {
+        gl.disable(gl.BLEND);
+        curlProgram.bind();
+        gl.uniform2f(curlProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(curlProgram.uniforms.uVelocity, velocity.read.attach(0));
+        blit(curl);
+        vorticityProgram.bind();
+        gl.uniform2f(vorticityProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(vorticityProgram.uniforms.uVelocity, velocity.read.attach(0));
+        gl.uniform1i(vorticityProgram.uniforms.uCurl, curl.attach(1));
+        gl.uniform1f(vorticityProgram.uniforms.curl, config.CURL);
+        gl.uniform1f(vorticityProgram.uniforms.dt, dt);
+        blit(velocity.write); velocity.swap();
+        divergenceProgram.bind();
+        gl.uniform2f(divergenceProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(divergenceProgram.uniforms.uVelocity, velocity.read.attach(0));
+        blit(divergence);
+        clearProgram.bind();
+        gl.uniform1i(clearProgram.uniforms.uTexture, pressure.read.attach(0));
+        gl.uniform1f(clearProgram.uniforms.value, config.PRESSURE);
+        blit(pressure.write); pressure.swap();
+        pressureProgram.bind();
+        gl.uniform2f(pressureProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(pressureProgram.uniforms.uDivergence, divergence.attach(0));
+        for (let i=0; i<config.PRESSURE_ITERATIONS; i++) {
+          gl.uniform1i(pressureProgram.uniforms.uPressure, pressure.read.attach(1));
+          blit(pressure.write); pressure.swap();
+        }
+        gradienSubtractProgram.bind();
+        gl.uniform2f(gradienSubtractProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        gl.uniform1i(gradienSubtractProgram.uniforms.uPressure, pressure.read.attach(0));
+        gl.uniform1i(gradienSubtractProgram.uniforms.uVelocity, velocity.read.attach(1));
+        blit(velocity.write); velocity.swap();
+        advectionProgram.bind();
+        gl.uniform2f(advectionProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
+        if (!supportLinearFiltering) gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, velocity.texelSizeX, velocity.texelSizeY);
+        const vid = velocity.read.attach(0);
+        gl.uniform1i(advectionProgram.uniforms.uVelocity, vid);
+        gl.uniform1i(advectionProgram.uniforms.uSource, vid);
+        gl.uniform1f(advectionProgram.uniforms.dt, dt);
+        gl.uniform1f(advectionProgram.uniforms.dissipation, config.VELOCITY_DISSIPATION);
+        blit(velocity.write); velocity.swap();
+        if (!supportLinearFiltering) gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, dye.texelSizeX, dye.texelSizeY);
+        gl.uniform1i(advectionProgram.uniforms.uVelocity, velocity.read.attach(0));
+        gl.uniform1i(advectionProgram.uniforms.uSource, dye.read.attach(1));
+        gl.uniform1f(advectionProgram.uniforms.dissipation, config.DENSITY_DISSIPATION);
+        blit(dye.write); dye.swap();
+      }
+
+      function render() {
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.enable(gl.BLEND);
+        displayMaterial.bind();
+        if (config.SHADING) gl.uniform2f(displayMaterial.uniforms.texelSize, 1/gl.drawingBufferWidth, 1/gl.drawingBufferHeight);
+        gl.uniform1i(displayMaterial.uniforms.uTexture, dye.read.attach(0));
+        blit(null);
+      }
+
+      let lastUpdateTime = Date.now(), colorUpdateTimer = 0;
+      function updateFrame() {
+        const now = Date.now(), dt = Math.min((now-lastUpdateTime)/1000, 0.016666);
+        lastUpdateTime = now;
+        colorUpdateTimer += dt * config.COLOR_UPDATE_SPEED;
+        if (colorUpdateTimer >= 1) {
+          colorUpdateTimer = wrap(colorUpdateTimer, 0, 1);
+          pointers.forEach(p => { p.color = generateColor(); });
+        }
+        const w=scaleByPixelRatio(canvas.clientWidth), h=scaleByPixelRatio(canvas.clientHeight);
+        if (canvas.width!==w||canvas.height!==h) { canvas.width=w; canvas.height=h; initFramebuffers(); }
+        pointers.forEach(p => { if (p.moved) { p.moved=false; splatPointer(p); } });
+        step(dt); render();
+        requestAnimationFrame(updateFrame);
+      }
+
+      displayMaterial.setKeywords(config.SHADING ? ['SHADING'] : []);
+      initFramebuffers();
+
+      let firstMove = false;
+      window.addEventListener('mousedown', e => {
+        const p=pointers[0]; updatePointerDownData(p,-1,scaleByPixelRatio(e.clientX),scaleByPixelRatio(e.clientY)); clickSplat(p);
+      });
+      window.addEventListener('mousemove', e => {
+        const p=pointers[0]; updatePointerMoveData(p, scaleByPixelRatio(e.clientX), scaleByPixelRatio(e.clientY));
+        if (!firstMove) { p.color=generateColor(); firstMove=true; }
+      });
+      window.addEventListener('touchstart', e => {
+        const t=e.targetTouches[0], p=pointers[0];
+        updatePointerDownData(p,t.identifier,scaleByPixelRatio(t.clientX),scaleByPixelRatio(t.clientY));
+      });
+      window.addEventListener('touchmove', e => {
+        const t=e.targetTouches[0], p=pointers[0];
+        updatePointerMoveData(p, scaleByPixelRatio(t.clientX), scaleByPixelRatio(t.clientY));
+      }, false);
+      window.addEventListener('touchend', e => { pointers[0].down=false; });
+
+      requestAnimationFrame(updateFrame);
+    })();
+  </script>
+  <!-- 底部信息区 -->
+  <div id="bottom-bar" style="transition: opacity 0.4s, visibility 0.4s; opacity: 1; pointer-events: all;">
+    <div id="bottom-left">
+      <div id="bottom-note-line1">* The voice of</div>
+      <div id="bottom-note-line2">the one you miss</div>
+    </div>
+    <div id="bottom-center">（ Design ）</div>
+    <div id="bottom-right">
+      <button class="bottom-link" onclick="window.open('https://mp.weixin.qq.com/s/kFTKEX9SX6pO1rtiVlisIw','_blank')">Help</button>
+      <button class="bottom-link" onclick="alert('About 跳转链接待配置')">About</button>
+    </div>
+  </div>
+  <script>
+(function(){
+var _tracks=['研究生毕设/info.mp3','研究生毕设/sunsetflowerray-a-fond-memory-116759.mp3'];
+var _ti=0;
+var _aud=new Audio(_tracks[_ti]);_aud.loop=true;_aud.volume=0.30;
+var on=false;
+function startM(){_aud.play().catch(function(){});on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}
+function stopM(){_aud.pause();on=false;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.remove('m-on');});}
+function nextTrack(){_ti=(_ti+1)%_tracks.length;_aud.pause();_aud.src=_tracks[_ti];_aud.currentTime=0;if(on)_aud.play().catch(function(){});}
+var auto=false;function tryAuto(){if(auto)return;auto=true;startM();}
+window.addEventListener('load',function(){setTimeout(function(){try{tryAuto();}catch(e){}},400);});
+document.addEventListener('click',function f(){tryAuto();document.removeEventListener('click',f);},{once:true});
+document.querySelectorAll('.m-play').forEach(function(b){b.addEventListener('click',function(){on?stopM():startM();});});
+document.querySelectorAll('.m-next').forEach(function(b){b.addEventListener('click',nextTrack);});
+document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});
+var _bc=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('nz_music'):null,_su=0;
+function _sd(m){if(Date.now()<_su)return;if(_bc)_bc.postMessage(m);try{localStorage.setItem('_nzM',JSON.stringify(Object.assign({},m,{_ts:Date.now()})));}catch(e){}}
+function _ap(m){if(!m)return;_su=Date.now()+250;var b=document.getElementById('music-btn'),w=document.getElementById('music-widget');if(!b)return;var io=w&&w.classList.contains('m-on');if(m.t==='play'&&!io)b.click();else if(m.t==='stop'&&io)b.click();}
+if(_bc)_bc.onmessage=function(e){_ap(e.data);};
+window.addEventListener('storage',function(e){if(e.key==='_nzM')try{_ap(JSON.parse(e.newValue));}catch(e){}});
+var _sm=startM,_stm=stopM,_nt=nextTrack;
+startM=function(){_sm();if(Date.now()>=_su)_sd({t:'play'});};
+stopM=function(){_stm();if(Date.now()>=_su)_sd({t:'stop'});};
+nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
+})();
+  </script>
+  <div id="custom-cursor"><img id="cursor-img" src="研究生毕设/鼠标normal.png" alt=""></div>
+  <script>
+  (function(){
+    var c=document.getElementById('custom-cursor'),im=document.getElementById('cursor-img');
+    if(!c||!im)return;
+    var N='研究生毕设/鼠标normal.png',H='研究生毕设/鼠标hover.png',hovering=false;
+    function isInteractive(el){while(el&&el!==document.body){var t=el.tagName;if(t==='A'||t==='BUTTON'||t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='LABEL')return true;if(el.getAttribute&&el.getAttribute('role')==='button')return true;try{if(window.getComputedStyle(el).cursor==='pointer')return true;}catch(e){}el=el.parentElement;}return false;}
+    document.addEventListener('mousemove',function(e){c.style.transform='translate('+(e.clientX-17)+'px,'+(e.clientY-17)+'px)';c.classList.add('show');});
+    document.addEventListener('mouseleave',function(){c.classList.remove('show');});
+    document.addEventListener('mouseover',function(e){hovering=isInteractive(e.target);im.src=hovering?H:N;});
+    document.addEventListener('mousedown',function(){im.src=H;});
+    document.addEventListener('mouseup',function(){im.src=hovering?H:N;});
+  })();
+  </script>
+</body>
+</html>

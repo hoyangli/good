@@ -1,0 +1,5 @@
+.DS_Store
+tectonic
+*.exe
+*.bin
+node_modules/

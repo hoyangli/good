@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高定视觉生成工具 - Designer Edition v2</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: background-color 0.5s ease;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        canvas {
+            display: block;
+            width: 800px;
+            height: 800px;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* 修复 lil-gui 重叠与层级问题，确保可点击 */
+        .lil-gui { 
+            --background-color: rgba(255, 255, 255, 0.95);
+            --text-color: #333;
+            --title-background-color: #f0f0f0;
+            --widget-color: #e0e0e0;
+            --hover-color: #d0d0d0;
+            --focus-color: #c0c0c0;
+            --number-color: #007acc;
+            --string-color: #28a148;
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            z-index: 9999 !important; /* 置于绝对顶层 */
+        }
+        /* ── 自定义光标 ── */
+        *{cursor:none!important;}
+        #custom-cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:99999;opacity:0;transition:opacity .15s;filter:drop-shadow(0 0 5px rgba(140,210,120,.85)) drop-shadow(0 0 12px rgba(140,210,120,.40));will-change:transform;}
+        #custom-cursor.show{opacity:1;}
+        #custom-cursor img{width:35px;height:35px;display:block;}
+    </style>
+</head>
+<body>
+
+    <div id="container"></div>
+
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 引入 GUI 控制面板 -->
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.19"></script>
+
+    <script>
+        /**
+         * Designer Edition v2: Advanced Materials & Morphing
+         * 纯粹材质版本：移除粒子，专注形态、色相与质感呈现
+         */
+
+        // ==========================================
+        // 1. 公共核心 Shader (包含高定材质算法)
+        // ==========================================
+        const shaderUtils = `
+            uniform float uTime;
+            uniform float uHover; 
+            
+            // 色彩与形态参数
+            uniform float uHueShift;   // 色相偏移 (0.0 - 1.0)
+            uniform float uSaturation; // 色彩纯度/饱和度 (0.0 - 1.0)
+            uniform float uSymmetry;   // 对称瓣数
+            uniform float uTension;    // 形变张力
+            uniform float uDepth;      // 图形深度/体积感
+            
+            // 物理与材质参数
+            uniform float uSpeed;
+            uniform int uMaterial;     // 材质模式
+            uniform float uIsParticleMode; // 是否为粒子三层架构模式
+
+            // --- 内部固定高定配色基底 ---
+            vec3 colorA = vec3(1.0, 0.41, 0.71); // Pink
+            vec3 colorB = vec3(1.0, 0.84, 0.0);  // Gold
+            vec3 colorC = vec3(0.0, 0.75, 1.0);  // Blue
+
+            // 高斯平滑核
+            float gaussian(float x, float sigma) {
+                return exp(-(x * x) / (2.0 * sigma * sigma));
+            }
+            float gaussianWeight(float x, float center, float sigma) {
+                return exp(-pow(x - center, 2.0) / (2.0 * sigma * sigma));
+            }
+
+            // HSV/RGB 无损转换
+            vec3 rgb2hsv(vec3 c) {
+                vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+                vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+                vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+                float d = q.x - min(q.w, q.y);
+                float e = 1.0e-10;
+                return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+            }
+            
+            vec3 hsv2rgb(vec3 c) {
+                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+            }
+
+            // 基础噪波
+            vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+            float snoise(vec2 v){
+                const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+                vec2 i  = floor(v + dot(v, C.yy) );
+                vec2 x0 = v - i + dot(i, C.xx);
+                vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1; i = mod(i, 289.0);
+                vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+                vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+                m = m*m; m = m*m;
+                vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                vec3 h = abs(x) - 0.5; vec3 ox = floor(x + 0.5); vec3 a0 = x - ox;
+                m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+                vec3 g; g.x  = a0.x  * x0.x  + h.x  * x0.y; g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                return 130.0 * dot(m, g);
+            }
+
+            // 随机哈希 (用于磨砂材质)
+            float hash12(vec2 p) {
+                vec3 p3  = fract(vec3(p.xyx) * .1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return fract((p3.x + p3.y) * p3.z);
+            }
+
+            mat2 rotate2d(float angle){
+                return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+            }
+        `;
+
+        // ==========================================
+        // 2. 主视觉材质层 Shaders
+        // ==========================================
+        const artVertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const artFragmentShader = `
+            ${shaderUtils}
+            varying vec2 vUv;
+
+            void main() {
+                vec2 uv = vUv * 2.0 - 1.0;
+
+                float rotSpeed = uTime * uSpeed * 0.5 * (1.0 - 0.1 * uHover); 
+                vec2 rotatedUV = rotate2d(rotSpeed) * uv;
+                
+                float r = length(rotatedUV);
+                float a = atan(rotatedUV.y, rotatedUV.x);
+
+                // --- 【核心形态引擎】: 完全对称的数学构建 ---
+                // uSymmetry 控制对称瓣数 (如 3=三叶, 4=十字星, 0=圆)
+                // uTension 控制形变的深浅度
+                float shapeDist = r + cos(a * uSymmetry) * uTension;
+
+                // --- 材质干扰阶段 (Distortion) ---
+                if (uMaterial == 1) { // 1: 水雾弥散 (Mist)
+                    // 叠加低频云雾噪波，打散边缘
+                    shapeDist += snoise(uv * 2.5 - uTime * uSpeed) * 0.15;
+                } else if (uMaterial == 2) { // 2: 磨砂晶体 (Frosted)
+                    // 叠加极高频细微噪波，产生颗粒折射感
+                    shapeDist += (hash12(uv * 500.0) - 0.5) * 0.08;
+                }
+
+                // --- 色彩融合阶段 ---
+                float colorNoise = snoise(vec2(r * 1.5, a * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
+                float r_perturbed = r + colorNoise;
+                
+                float sigma = 0.4; 
+                float w1 = gaussianWeight(r_perturbed, 0.0, sigma);
+                float w2 = gaussianWeight(r_perturbed, 0.6, sigma);
+                float w3 = gaussianWeight(r_perturbed, 1.2, sigma);
+                
+                vec3 mixedColor = (colorA * w1 + colorB * w2 + colorC * w3) / (w1 + w2 + w3);
+                
+                // --- 【色彩纯化与锁定】: 仅改变色相 ---
+                vec3 hsv = rgb2hsv(mixedColor);
+                hsv.x = fract(hsv.x + uHueShift + uHover * 0.1); // UI控制整体色相旋转
+                hsv.y = uSaturation; // 【核心设计】接入 UI 控制的色彩纯度 (饱和度)
+                hsv.z = 0.90; // 【核心设计】锁死明度避免死黑
+                vec3 finalColor = hsv2rgb(hsv);
+
+                // --- 【高定深度与体积感计算 (Volume Depth)】 ---
+                float baseSize = 0.4;
+                float thickness = smoothstep(baseSize, 0.0, shapeDist); 
+                // 模拟菲涅尔边缘折射效应
+                float fresnel = pow(1.0 - thickness, 3.0) * smoothstep(baseSize + 0.1, baseSize - 0.1, shapeDist); 
+                
+                // 随着深度增加，核心变深邃，边缘产生高光折射感 (模拟 3D 凝胶/液态玻璃)
+                finalColor = mix(finalColor, finalColor * 0.3, thickness * uDepth * 0.8);
+                finalColor += finalColor * fresnel * uDepth * 2.5;
+
+                // --- 遮罩与透明度计算 ---
+                float alpha = shapeDist < baseSize ? 1.0 : gaussian(shapeDist - baseSize, 0.15);
+
+                // --- 材质渲染阶段 (Rendering) ---
+                if (uMaterial == 3) { // 3: 波纹涟漪 (Ripples)
+                    // 在内部生成向外扩散的正弦波纹
+                    float ripple = 0.5 + 0.5 * sin((shapeDist * 25.0) - (uTime * uSpeed * 30.0));
+                    // 波纹强度从中心向边缘衰减
+                    float rippleMask = smoothstep(0.5, 0.0, shapeDist);
+                    alpha *= mix(0.4, 1.0, ripple * rippleMask + (1.0 - rippleMask));
+                    // 波峰处增加高光
+                    finalColor += vec3(0.1) * ripple * rippleMask;
+                } else if (uMaterial == 1) { // 1: 水雾弥散
+                    // 极度柔化边缘
+                    alpha *= smoothstep(0.6, 0.1, shapeDist + snoise(uv*5.0)*0.1);
+                } else if (uMaterial == 2) { // 2: 磨砂晶体
+                    // 降低一点整体透明度，增加实感
+                    alpha *= 0.9;
+                } else { // 0: 丝滑柔光
+                    // 增加微弱的内部自发光
+                    float innerGlow = smoothstep(baseSize, 0.0, shapeDist) * 0.15;
+                    finalColor += vec3(innerGlow);
+                }
+
+                // 如果是粒子架构模式，核心图形变为半透明的流体包膜，以透出下方粒子
+                if (uIsParticleMode > 0.5) {
+                    alpha *= mix(0.35, 0.65, uHover);
+                }
+
+                // 悬停交互微调
+                alpha *= (1.0 + uHover * 0.1);
+
+                gl_FragColor = vec4(finalColor, alpha);
+            }
+        `;
+
+        // ==========================================
+        // 2.2 光晕层 Shaders (Glow Engine - 用于三层架构)
+        // ==========================================
+        const glowVertexShader = `
+            varying vec2 vUv;
+            uniform float uHover;
+            void main() {
+                vUv = uv;
+                float scale = 1.2 + uHover * 0.2; 
+                vec3 pos = position * scale;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const glowFragmentShader = `
+            ${shaderUtils}
+            varying vec2 vUv;
+
+            void main() {
+                vec2 center = vUv - 0.5;
+                float dist = length(center) * 2.0; 
+                float angle = atan(center.y, center.x);
+
+                // 让光晕也受形态张力影响，保持视觉统一
+                float shapeDist = dist + cos(angle * uSymmetry) * (uTension * 0.5); 
+                float alpha = gaussian(shapeDist, 0.6);
+                
+                float colorNoise = snoise(vec2(dist * 1.5, angle * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
+                float dist_perturbed = dist + colorNoise;
+                
+                float sigma = 0.5; 
+                float w1 = gaussianWeight(dist_perturbed, 0.0, sigma);
+                float w2 = gaussianWeight(dist_perturbed, 0.8, sigma);
+                float w3 = gaussianWeight(dist_perturbed, 1.6, sigma);
+                
+                vec3 mixedColor = (colorA * w1 + colorB * w2 + colorC * w3) / (w1 + w2 + w3);
+                
+                vec3 hsv = rgb2hsv(mixedColor);
+                hsv.x = fract(hsv.x + uHueShift + uHover * 0.1);
+                hsv.y = uSaturation; 
+                hsv.z = 0.90; 
+                vec3 color = hsv2rgb(hsv);
+
+                gl_FragColor = vec4(color, alpha * 0.25); 
+            }
+        `;
+
+        // ==========================================
+        // 2.5 粒子材质层 Shaders (Particles Engine)
+        // ==========================================
+        const particleVertexShader = `
+            ${shaderUtils}
+            varying vec3 vColor;
+            varying float vAlpha;
+
+            void main() {
+                vec2 uv = uv * 2.0 - 1.0;
+                float rotSpeed = uTime * uSpeed * 0.5 * (1.0 - 0.1 * uHover); 
+                vec2 rotatedUV = rotate2d(rotSpeed) * uv;
+                
+                float r = length(rotatedUV);
+                float a = atan(rotatedUV.y, rotatedUV.x);
+
+                // 让粒子跟随全新的对称形态引擎重组
+                float shapeDist = r + cos(a * uSymmetry) * uTension;
+                float mask = shapeDist < 0.4 ? 1.0 : gaussian(shapeDist - 0.4, 0.08);
+                
+                float colorNoise = snoise(vec2(r * 1.5, a * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
+                float r_perturbed = r + colorNoise;
+                
+                float sigma = 0.4;
+                float w1 = gaussianWeight(r_perturbed, 0.0, sigma);
+                float w2 = gaussianWeight(r_perturbed, 0.6, sigma);
+                float w3 = gaussianWeight(r_perturbed, 1.2, sigma);
+                
+                vec3 mixedColor = (colorA * w1 + colorB * w2 + colorC * w3) / (w1 + w2 + w3);
+                
+                // 粒子接入纯度控制与色相流转
+                vec3 hsv = rgb2hsv(mixedColor);
+                hsv.x = fract(hsv.x + uHueShift + uHover * 0.1); 
+                hsv.y = uSaturation; 
+                hsv.z = 0.90; 
+                vColor = hsv2rgb(hsv);
+
+                vec3 pos = position;
+
+                // 粒子的布朗运动与频率
+                float floatScale = 0.036 * (1.0 + 0.1 * uHover);
+                float freq = uTime * uSpeed * 5.0;
+                pos.x += snoise(vec2(uv.x, freq)) * floatScale;
+                pos.y += snoise(vec2(uv.y, freq)) * floatScale;
+                pos.z += snoise(vec2(uv.x + uv.y, freq)) * floatScale;
+
+                vec3 disperseDir = normalize(vec3(uv, 0.2)); 
+                vec3 randomDir = vec3(
+                    snoise(uv * 5.0 + freq),
+                    snoise(uv * 5.0 - freq),
+                    snoise(uv * 10.0)
+                );
+                
+                float dispScale = 0.45 * (1.0 + 0.1 * uHover);
+                vec3 offset = (disperseDir * 0.8 + randomDir * 0.5) * uHover * dispScale;
+                pos += offset;
+
+                float baseSize = 4.0 + mask * 3.0; 
+                gl_PointSize = baseSize * (1.0 - uHover * 0.2) * mask; 
+                
+                vAlpha = mask * (1.0 - uHover * 0.1);
+
+                if (mask < 0.01) gl_PointSize = 0.0;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const particleFragmentShader = `
+            varying vec3 vColor;
+            varying float vAlpha;
+
+            void main() {
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                float dist = length(coord);
+                // 极度柔化的单颗微粒边缘
+                float circle = exp(-(dist * dist) / (2.0 * 0.05));
+                if (circle < 0.01) discard;
+                gl_FragColor = vec4(vColor, vAlpha * circle);
+            }
+        `;
+
+        // ==========================================
+        // 3. 初始化工具与 UI
+        // ==========================================
+        function initThoughtForm(containerId) {
+            const container = document.getElementById(containerId);
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            const scene = new THREE.Scene();
+            // 调整相机视口以完美适配各种形态
+            const camera = new THREE.OrthographicCamera(-1.2, 1.2, 1.2, -1.2, 0.1, 10);
+            camera.position.z = 1;
+
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比优化性能
+            container.appendChild(renderer.domElement);
+
+            // 全局可控 Uniforms (已根据限定范围更新初始默认值)
+            const uniforms = {
+                uTime: { value: 0 },
+                uHover: { value: 0 },
+                
+                // 形态
+                uSymmetry: { value: 3.0 },
+                uTension: { value: 0.1 }, // 限定默认张力
+                
+                // 色彩
+                uHueShift: { value: 0.0 },
+                uSaturation: { value: 0.2 }, // 限定默认纯度
+                
+                // 物理与材质
+                uDepth: { value: 0.0 }, 
+                uSpeed: { value: 0.08 }, // 限定默认速度
+                uMaterial: { value: 4 }, // 默认改为4=粒子三层架构
+                uIsParticleMode: { value: 1.0 } // 开启粒子模式标记
+            };
+
+            // --- A. 光晕 Mesh (最底层 z = -0.1) ---
+            const glowGeo = new THREE.PlaneGeometry(2.4, 2.4);
+            const glowMat = new THREE.ShaderMaterial({
+                vertexShader: glowVertexShader,
+                fragmentShader: glowFragmentShader,
+                uniforms: uniforms,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.NormalBlending
+            });
+            const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+            glowMesh.position.z = -0.1;
+            scene.add(glowMesh);
+
+            // --- B. 粒子视觉 Mesh (中间层 z = 0.0) ---
+            const partGeo = new THREE.PlaneGeometry(2.4, 2.4, 150, 150); // 22500 颗高定微粒
+            const partMat = new THREE.ShaderMaterial({
+                vertexShader: particleVertexShader,
+                fragmentShader: particleFragmentShader,
+                uniforms: uniforms,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.NormalBlending 
+            });
+            const particles = new THREE.Points(partGeo, partMat);
+            particles.position.z = 0.0;
+            scene.add(particles);
+
+            // --- C. 主视觉/流体核心 Mesh (最上层 z = 0.05) ---
+            const artGeo = new THREE.PlaneGeometry(2.4, 2.4);
+            const artMat = new THREE.ShaderMaterial({
+                vertexShader: artVertexShader,
+                fragmentShader: artFragmentShader,
+                uniforms: uniforms,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.NormalBlending
+            });
+            const artMesh = new THREE.Mesh(artGeo, artMat);
+            artMesh.position.z = 0.05;
+            scene.add(artMesh);
+
+            // ==========================================
+            // 4. 设计师 GUI 控制面板配置
+            // ==========================================
+            const guiParams = {
+                symmetry: 3,        
+                tension: 0.1,       // 更新默认值
+                hueDegree: 0,       
+                saturation: 0.2,    // 更新默认值
+                depth: 0.0,         
+                material: 4,        // 默认开启粒子浮动
+                speed: 0.08,        // 更新默认值
+                bgColor: '#ffffff'
+            };
+
+            const gui = new lil.GUI({ title: '✨ 视觉生成控制台 v2' });
+
+            // --- 形态面板 ---
+            const folderShape = gui.addFolder('图形形态 (Symmetrical Form)');
+            folderShape.add(guiParams, 'symmetry', 0, 10, 1).name('对称瓣数 (边/角)').onChange(v => uniforms.uSymmetry.value = v);
+            // 将张力范围限定在极其克制的 0.05 到 0.15 区间内
+            folderShape.add(guiParams, 'tension', 0.05, 0.15).name('形变张力 (凹凸度)').onChange(v => uniforms.uTension.value = v);
+
+            // --- 材质面板 ---
+            const folderMaterial = gui.addFolder('呈现材质 (Material & Texture)');
+            folderMaterial.add(guiParams, 'material', { 
+                '✨ 丝滑柔光 (Smooth)': 0, 
+                '☁️ 水雾弥散 (Mist)': 1,
+                '🧊 磨砂晶体 (Frosted)': 2,
+                '💧 波纹涟漪 (Ripples)': 3,
+                '🌟 粒子浮动 (Particles Layered)': 4
+            }).name('选择材质').onChange(v => {
+                const matType = parseInt(v);
+                
+                // 优雅地切换图层架构
+                if (matType === 4) {
+                    // 开启经典三层架构
+                    uniforms.uMaterial.value = 0; // 核心图形使用半透明柔光流体
+                    uniforms.uIsParticleMode.value = 1.0;
+                    artMesh.visible = true;
+                    particles.visible = true;
+                    glowMesh.visible = true;
+                } else {
+                    // 单一高定材质模式
+                    uniforms.uMaterial.value = matType;
+                    uniforms.uIsParticleMode.value = 0.0;
+                    artMesh.visible = true;
+                    particles.visible = false;
+                    glowMesh.visible = false;
+                }
+            });
+            // 暴露深度控制器
+            folderMaterial.add(guiParams, 'depth', 0.0, 1.0).name('视觉深度 (Volume Depth)').onChange(v => uniforms.uDepth.value = v);
+
+            // --- 色彩面板 ---
+            const folderColor = gui.addFolder('核心色调 (Color Hue)');
+            folderColor.add(guiParams, 'hueDegree', 0, 360).name('整体色相流转').onChange(v => {
+                uniforms.uHueShift.value = v / 360.0;
+            });
+            // 将纯度范围限定在温柔、透气的高级灰彩色系 0.15 到 0.25 之间
+            folderColor.add(guiParams, 'saturation', 0.15, 0.25).name('色彩纯度 (Saturation)').onChange(v => {
+                uniforms.uSaturation.value = v;
+            });
+            folderColor.addColor(guiParams, 'bgColor').name('环境背景色').onChange(v => {
+                document.body.style.backgroundColor = v;
+                // GUI 亮暗色自适应
+                const isDark = new THREE.Color(v).getHSL({}).l < 0.5;
+                document.querySelector('.lil-gui').style.setProperty('--background-color', isDark ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.95)');
+                document.querySelector('.lil-gui').style.setProperty('--text-color', isDark ? '#eee' : '#333');
+            });
+
+            // --- 物理面板 ---
+            const folderPhysics = gui.addFolder('物理动态 (Physics)');
+            // 将流动速度限制在 0 到 0.12 的极其缓慢、舒展的节奏内
+            folderPhysics.add(guiParams, 'speed', 0.0, 0.12).name('波动与流动速度').onChange(v => uniforms.uSpeed.value = v);
+
+            // 默认展开核心面板
+            folderShape.open();
+            folderMaterial.open();
+            folderColor.open();
+
+            // --- 悬停呼吸交互 ---
+            container.addEventListener('mouseenter', () => gsapToHover(1.0));
+            container.addEventListener('mouseleave', () => gsapToHover(0.0));
+
+            let hoverAnimId;
+            function gsapToHover(target) {
+                cancelAnimationFrame(hoverAnimId);
+                const start = uniforms.uHover.value;
+                const startTime = performance.now();
+                const duration = 1000;
+
+                function animate(time) {
+                    const elapsed = time - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease out
+                    uniforms.uHover.value = start + (target - start) * ease;
+                    if (progress < 1) hoverAnimId = requestAnimationFrame(animate);
+                }
+                hoverAnimId = requestAnimationFrame(animate);
+            }
+
+            // --- 渲染循环 ---
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame(animate);
+                uniforms.uTime.value = clock.getElapsedTime();
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // --- 自适应窗口 ---
+            window.addEventListener('resize', () => {
+                // 确保画布始终填满容器，避免因为固定宽高导致的变形
+                const newWidth = Math.min(container.clientWidth, 800);
+                const newHeight = Math.min(container.clientHeight, 800);
+                renderer.setSize(newWidth, newHeight);
+                // 保持正方形绘制区域
+                renderer.domElement.style.width = newWidth + 'px';
+                renderer.domElement.style.height = newHeight + 'px';
+            });
+            // 触发一次 resize 初始化
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        // 确保所有外部库加载完成后再执行初始化，修复 THREE is not defined 问题
+        window.onload = function() {
+            initThoughtForm('container');
+        };
+
+    </script>
+    <div id="custom-cursor"><img id="cursor-img" src="研究生毕设/鼠标normal.png" alt=""></div>
+    <script>
+    (function(){
+      var c=document.getElementById('custom-cursor'),im=document.getElementById('cursor-img');
+      if(!c||!im)return;
+      var N='研究生毕设/鼠标normal.png',H='研究生毕设/鼠标hover.png',hovering=false;
+      function isInteractive(el){while(el&&el!==document.body){var t=el.tagName;if(t==='A'||t==='BUTTON'||t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='LABEL')return true;if(el.getAttribute&&el.getAttribute('role')==='button')return true;try{if(window.getComputedStyle(el).cursor==='pointer')return true;}catch(e){}el=el.parentElement;}return false;}
+      document.addEventListener('mousemove',function(e){c.style.transform='translate('+(e.clientX-17)+'px,'+(e.clientY-17)+'px)';c.classList.add('show');});
+      document.addEventListener('mouseleave',function(){c.classList.remove('show');});
+      document.addEventListener('mouseover',function(e){hovering=isInteractive(e.target);im.src=hovering?H:N;});
+      document.addEventListener('mousedown',function(){im.src=H;});
+      document.addEventListener('mouseup',function(){im.src=hovering?H:N;});
+    })();
+    </script>
+</body>
+</html>

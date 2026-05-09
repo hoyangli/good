@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <title>凝固与TA的瞬间 - 念者语</title>
+  <style>
+    @font-face {
+      font-family: 'FZBYKSJW';
+      src: url('FZBYKSJW.TTF') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'FZHuaSKXTJW';
+      src: url('FZHuaSKXTJW-R.TTF') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'FZBYKSJW', 'FZHuaSKXTJW', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      -webkit-text-stroke-width: 0.2px;
+      width: 100%; min-height: 100vh;
+      overflow-x: hidden; position: relative;
+    }
+    .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -3; background: transparent; }
+    .bg-gradient-overlay { position: fixed; left: 0; bottom: 0; width: 100%; height: 65%; z-index: -2; background: transparent; }
+    .bg-blur-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; filter: none; object-fit: cover; will-change: transform; }
+    .bg-frost { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%); }
+    .light-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+      /* 对角光束：明亮光带 + 暗部阴影 */
+      background:
+        /* 左上角主光源光晕 */
+        radial-gradient(ellipse 65% 50% at 10% 5%, rgba(255,248,220,0.72) 0%, rgba(255,248,220,0.00) 100%),
+        /* 对角光带1（最亮） */
+        linear-gradient(122deg,
+          rgba(0,0,0,0.00) 0%,
+          rgba(0,0,0,0.00) 12%,
+          rgba(255,252,235,0.52) 20%,
+          rgba(255,252,235,0.00) 28%,
+          rgba(0,0,0,0.06) 36%,
+          rgba(255,250,225,0.28) 46%,
+          rgba(0,0,0,0.00) 54%,
+          rgba(0,0,0,0.09) 68%,
+          rgba(0,0,0,0.00) 80%,
+          rgba(0,0,0,0.12) 100%
+        ),
+        /* 右下角暗角 */
+        radial-gradient(ellipse 55% 45% at 95% 95%, rgba(40,30,20,0.18) 0%, transparent 100%);
+    }
+    body.dark .light-overlay {
+      background:
+        radial-gradient(ellipse 60% 45% at 10% 5%, rgba(140,170,210,0.18) 0%, transparent 100%),
+        linear-gradient(122deg,
+          rgba(255,255,255,0.00) 0%,
+          rgba(255,255,255,0.06) 20%,
+          rgba(255,255,255,0.00) 30%,
+          rgba(0,0,0,0.10) 55%,
+          rgba(0,0,0,0.18) 100%
+        );
+    }
+    .nav-title-img { width: 168px; height: auto; display: block; transform-origin: left top; }
+    body.dark .nav-title-img { filter: invert(1) brightness(2); }
+
+    /* 弥散漂浮光点 */
+    .hist-orbs { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+    .hist-orb {
+      position: absolute; border-radius: 50%;
+      animation: histOrbRise linear infinite;
+      will-change: transform, opacity;
+    }
+    @keyframes histOrbRise {
+      0%   { transform: translateY(0) translateX(0) scale(1);   opacity: 0; }
+      8%   { opacity: 1; }
+      50%  { transform: translateY(-45vh) translateX(var(--dx)) scale(1.08); opacity: var(--peak); }
+      92%  { opacity: 0.15; }
+      100% { transform: translateY(-102vh) translateX(calc(var(--dx)*2)) scale(0.9); opacity: 0; }
+    }
+    body.dark .bg-blur-img { filter: brightness(60%); }
+    body.dark .bg-frost { background: linear-gradient(180deg, rgba(40,50,40,0.3) 0%, rgba(40,50,40,0.15) 100%); }
+
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 18px 32px; z-index: 100; background: transparent;
+    }
+    .nav-left { display: flex; align-items: flex-start; gap: 12px; }
+    .back-btn {
+      width: 32px; height: 32px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; padding: 0;
+      color: #001A08;
+    }
+    body.dark .back-btn { color: rgba(255,255,255,0.80); }
+    .back-btn svg { width: 32px; height: 32px; }
+    .nav-title {
+      font-size: 20px;
+      background: linear-gradient(180deg, rgba(0,22,3,1) 0%, rgba(0,70,9,1) 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    body.dark .nav-title {
+      background: linear-gradient(180deg, #8EC89D 0%, #FFF 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .theme-btn {
+      display: flex; padding: 10px; justify-content: center; align-items: center;
+      border-radius: 50%; border: 1px solid rgba(60,80,60,0.3);
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+      color: #2a3a2a; cursor: pointer; transition: all 0.3s ease;
+    }
+    .theme-btn:hover { background: rgba(255,255,255,0.3); }
+    .theme-btn svg { width: 16px; height: 16px; }
+
+
+    /* ── Vine layout ── */
+    .vine-scroll-outer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; z-index: 1; }
+    .vine-strip { position: relative; display: flex; height: 100%; transition: transform 0.75s cubic-bezier(0.25,0.46,0.45,0.94); will-change: transform; }
+    .vine-page { position: relative; width: 100vw; height: 100vh; flex-shrink: 0; overflow: hidden; }
+    .vine-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .vine-node {
+      position: absolute; transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), filter 0.35s ease;
+    }
+    .vine-node:hover { transform: translate(-50%, -50%) scale(1.12); filter: brightness(1.12); }
+    .flower-canvas { display: block; box-shadow: none; }
+    .petal-label {
+      position: absolute; white-space: nowrap; pointer-events: none;
+      font-size: 12px; letter-spacing: 1.2px; line-height: 1.5;
+    }
+    .petal-name {
+      bottom: 30px; left: 50%; right: auto; top: auto;
+      transform: translateX(-50%); text-align: center;
+      color: rgba(0,26,8,0.88);
+      background: rgba(255,255,255,0.22);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border-radius: 20px; padding: 3px 14px;
+    }
+    .petal-date {
+      bottom: 8px; left: 50%; right: auto; top: auto;
+      transform: translateX(-50%); text-align: center;
+      color: rgba(0,26,8,0.52); font-size: 10px;
+    }
+    body.dark .petal-name { color: rgba(220,240,220,0.92); background: rgba(0,0,0,0.25); }
+    body.dark .petal-date { color: rgba(200,220,200,0.60); }
+    .node-delete {
+      position: absolute; top: 110px; right: 110px;
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.30); color: rgba(255,255,255,0.90);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.2s; font-size: 12px; line-height: 1;
+    }
+    .vine-node:hover .node-delete { opacity: 1; }
+    .page-dots { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 200; }
+    .page-dot { width: 6px; height: 6px; border-radius: 3px; background: rgba(0,26,8,0.18); transition: all 0.3s; }
+    .page-dot.active { width: 18px; background: rgba(0,26,8,0.55); }
+    body.dark .page-dot { background: rgba(255,255,255,0.2); }
+    body.dark .page-dot.active { background: rgba(255,255,255,0.7); }
+    .empty-state {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; color: rgba(0,26,8,0.45); font-size: 16px; letter-spacing: 1px; z-index: 5;
+    }
+    body.dark .empty-state { color: rgba(255,255,255,0.45); }
+
+    /* 返回按钮箭头 */
+    body.dark .back-btn svg path { stroke: rgba(255, 255, 255, 0.80); }
+
+    /* 音乐控件 */
+    body.dark .m-widget { background: rgba(40,55,40,.50); border-color: rgba(150,180,150,.30); }
+    body.dark .m-widget:hover { background: rgba(55,75,55,.70); }
+    body.dark .m-bars span { background: rgba(200,225,200,.60); }
+    body.dark .m-ctrl { color: rgba(200,225,200,.80); }
+    body.dark .m-ctrl:hover { color: rgba(220,245,220,.95); }
+    body.dark .m-label { color: rgba(200,225,200,.60); }
+    .m-widget{pointer-events:all;cursor:default;position:relative;display:flex;align-items:center;justify-content:center;width:56px;height:34px;border-radius:17px;border:1px solid rgba(60,80,60,.28);background:rgba(255,255,255,.45);backdrop-filter:blur(8px);overflow:hidden;transition:background .25s,border-color .25s;flex-shrink:0;}
+    .m-widget:hover{background:rgba(255,255,255,.70);border-color:rgba(60,80,60,.45);}
+    .m-widget.m-on{border-color:rgba(100,150,100,.55);}
+    .m-bars{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:3px;transition:opacity .18s;}
+    .m-bars span{display:block;width:2px;height:3px;border-radius:2px;background:rgba(40,60,40,.55);}
+    .m-widget.m-on .m-bars span:nth-child(1){animation:mwave .52s ease-in-out 0s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(2){animation:mwave .68s ease-in-out .09s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(3){animation:mwave .56s ease-in-out .17s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(4){animation:mwave .64s ease-in-out .04s infinite alternate;}
+    .m-widget.m-on .m-bars span:nth-child(5){animation:mwave .58s ease-in-out .12s infinite alternate;}
+    @keyframes mwave{from{height:3px;opacity:.3}to{height:14px;opacity:.82}}
+    .m-widget:hover .m-bars{opacity:0;}
+    .m-ctrls{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 5px;opacity:0;transition:opacity .18s;}
+    .m-widget:hover .m-ctrls{opacity:1;}
+    .m-ctrl{background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(40,60,40,.78);padding:3px;border-radius:4px;transition:color .18s;}
+    .m-ctrl:hover{color:rgba(20,50,20,.95);}
+    .m-widget .icon-pause{display:none;}
+    .m-widget.m-on .icon-play{display:none;}
+    .m-widget.m-on .icon-pause{display:block;}
+    .m-label{font-size:8px;letter-spacing:1px;color:rgba(40,60,40,.55);min-width:8px;text-align:center;}
+    @media (max-width: 768px) {
+      .petal-name, .petal-date { font-size: 10px; }
+    }
+    /* ── 自定义光标 ── */
+    *{cursor:none!important;}
+    #custom-cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:99999;opacity:0;transition:opacity .15s;filter:drop-shadow(0 0 5px rgba(140,210,120,.85)) drop-shadow(0 0 12px rgba(140,210,120,.40));will-change:transform;}
+    #custom-cursor.show{opacity:1;}
+    #custom-cursor img{width:35px;height:35px;display:block;}
+  </style>
+</head>
+<body>
+  <div class="bg-layer"></div>
+  <div class="bg-gradient-overlay"></div>
+  <img class="bg-blur-img" src="研究生毕设/历史记录页bg .png" alt="">
+  <div class="bg-frost"></div>
+  <div class="light-overlay"></div>
+  <div class="hist-orbs" id="histOrbs"></div>
+
+  <div class="top-bar">
+    <div class="nav-left">
+      <button class="back-btn" onclick="window.location.href='index.html'">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9.21313 20H34.9999" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M19.0454 31.5454L8.38405 20.884C7.89589 20.3958 7.8959 19.6044 8.38406 19.1162L19.0454 8.4551" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <img src="研究生毕设/历史记录页标题.png" alt="凝固与TA的瞬间" class="nav-title-img">
+    </div>
+      <div class="nav-right" style="display:flex;align-items:flex-start;gap:12px;">
+      <div class="m-widget" id="music-widget">
+        <div class="m-bars"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="m-ctrls">
+          <button class="m-play m-ctrl" id="music-btn" title="播放/暂停">
+            <svg class="icon-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <svg class="icon-pause" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+          <span class="m-label"></span>
+          <button class="m-next m-ctrl" id="music-next-btn" title="下一首">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="5 4 15 12 5 20"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+          </button>
+        </div>
+      </div>
+    <button class="theme-btn" id="themeToggle">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21.5 14.0784C20.3003 14.7189 18.9301 15.0821 17.4751 15.0821C12.7491 15.0821 8.91792 11.2509 8.91792 6.52485C8.91792 5.06986 9.28105 3.69968 9.92163 2.5C5.66765 3.49698 2.5 7.31513 2.5 11.8731C2.5 17.1899 6.8101 21.5 12.1269 21.5C16.6849 21.5 20.503 18.3324 21.5 14.0784Z" stroke="#141B34" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+      </div>
+  </div>
+
+  <div class="vine-scroll-outer" id="vineOuter">
+    <div class="vine-strip" id="vineStrip"></div>
+  </div>
+  <div class="page-dots" id="pageDots"></div>
+
+  <script>
+  (function(){
+    let records = [];
+    try { records = JSON.parse(localStorage.getItem('nierzheyu_records') || '[]'); } catch(e){}
+
+    const strip = document.getElementById('vineStrip');
+    const dotsEl = document.getElementById('pageDots');
+    const PER_PAGE = 4;
+    const totalPages = Math.max(1, Math.ceil(records.length / PER_PAGE));
+    let curPage = 0;
+
+    // Node x-fractions along the horizontal wave
+    const NODE_X_FRACS = [0.17, 0.38, 0.62, 0.82];
+    // Wave parameters (shared across strands)
+    const WAVE_BASE = 0.50; // centerY as fraction of H
+    const WAVE_AMP  = 0.20; // amplitude as fraction of H
+    const WAVE_FREQ = 1.35; // periods across full width
+
+    function waveYAt(xFrac, ampMul, phase, yOff, H) {
+      return H * WAVE_BASE + H * WAVE_AMP * ampMul * Math.sin(WAVE_FREQ * 2 * Math.PI * xFrac + phase) + yOff;
+    }
+
+    // 5 vine strands: [ampMul, phase, yOff, color, strokeWidth]
+    const STRANDS = [
+      [1.00,  0.00,  0,  'rgba(55,95,35,0.58)',   2.0],
+      [0.86,  0.24,  8,  'rgba(78,125,48,0.38)',   1.2],
+      [1.14, -0.32, -11, 'rgba(100,148,58,0.24)',  0.8],
+      [0.70,  0.55,  15, 'rgba(130,158,72,0.19)',  0.6],
+      [1.28, -0.65, -18, 'rgba(42,72,26,0.14)',    0.5],
+    ];
+
+    function catmullRomPath(pts) {
+      let d = `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(0, i - 1)];
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        const p3 = pts[Math.min(pts.length - 1, i + 2)];
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+        d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+      }
+      return d;
+    }
+
+    function buildStrandPath(W, H, ampMul, phase, yOff, N = 32) {
+      const pts = Array.from({length: N}, (_, i) => {
+        const xFrac = i / (N - 1);
+        return { x: xFrac * W, y: waveYAt(xFrac, ampMul, phase, yOff, H) };
+      });
+      return catmullRomPath(pts);
+    }
+
+    // ── Three.js VisualArt mini scene (same shaders as chat page) ──
+    const shaderUtils = `
+    uniform float uTime;uniform float uHover;uniform float uExcited;uniform float uVoice;
+    uniform float uHueShift;uniform float uSaturation;uniform float uSymmetry;uniform float uTension;
+    uniform float uDepth;uniform float uSpeed;uniform int uMaterial;uniform float uIsParticleMode;
+    vec3 colorA=vec3(1.0,0.41,0.71);vec3 colorB=vec3(1.0,0.84,0.0);vec3 colorC=vec3(0.0,0.75,1.0);
+    float gaussian(float x,float sigma){return exp(-(x*x)/(2.0*sigma*sigma));}
+    float gaussianWeight(float x,float center,float sigma){return exp(-pow(x-center,2.0)/(2.0*sigma*sigma));}
+    vec3 rgb2hsv(vec3 c){vec4 K=vec4(0.0,-1.0/3.0,2.0/3.0,-1.0);vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g));vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r));float d=q.x-min(q.w,q.y);float e=1.0e-10;return vec3(abs(q.z+(q.w-q.y)/(6.0*d+e)),d/(q.x+e),q.x);}
+    vec3 hsv2rgb(vec3 c){vec4 K=vec4(1.0,2.0/3.0,1.0/3.0,3.0);vec3 p=abs(fract(c.xxx+K.xyz)*6.0-K.www);return c.z*mix(K.xxx,clamp(p-K.xxx,0.0,1.0),c.y);}
+    vec3 permute(vec3 x){return mod(((x*34.0)+1.0)*x,289.0);}
+    float snoise(vec2 v){const vec4 C=vec4(0.211324865405187,0.366025403784439,-0.577350269189626,0.024390243902439);vec2 i=floor(v+dot(v,C.yy));vec2 x0=v-i+dot(i,C.xx);vec2 i1=(x0.x>x0.y)?vec2(1.0,0.0):vec2(0.0,1.0);vec4 x12=x0.xyxy+C.xxzz;x12.xy-=i1;i=mod(i,289.0);vec3 p=permute(permute(i.y+vec3(0.0,i1.y,1.0))+i.x+vec3(0.0,i1.x,1.0));vec3 m=max(0.5-vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)),0.0);m=m*m;m=m*m;vec3 x=2.0*fract(p*C.www)-1.0;vec3 h=abs(x)-0.5;vec3 ox=floor(x+0.5);vec3 a0=x-ox;m*=1.79284291400159-0.85373472095314*(a0*a0+h*h);vec3 g;g.x=a0.x*x0.x+h.x*x0.y;g.yz=a0.yz*x12.xz+h.yz*x12.yw;return 130.0*dot(m,g);}
+    mat2 rotate2d(float angle){return mat2(cos(angle),-sin(angle),sin(angle),cos(angle));}
+    `;
+    const _artVS = `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
+    const _artFS = shaderUtils + `
+    varying vec2 vUv;void main(){vec2 uv=vUv*2.0-1.0;
+    float rotSpeed=uTime*uSpeed*0.5;vec2 rUV=rotate2d(rotSpeed)*uv;float r=length(rUV);float a=atan(rUV.y,rUV.x);
+    float shapeDist=r+cos(a*uSymmetry)*uTension;
+    float colorNoise=snoise(vec2(r*1.5,a-uTime*uSpeed*2.0))*0.4;float r_p=r+colorNoise;
+    float sigma=0.4;float w1=gaussianWeight(r_p,0.0,sigma);float w2=gaussianWeight(r_p,0.6,sigma);float w3=gaussianWeight(r_p,1.2,sigma);
+    vec3 mc=(colorA*w1+colorB*w2+colorC*w3)/(w1+w2+w3);vec3 hsv=rgb2hsv(mc);
+    hsv.x=fract(hsv.x+uHueShift);hsv.y=(uSaturation+0.10);hsv.z=0.80;vec3 fc=hsv2rgb(hsv);
+    float baseSize=0.4;float innerGlow=smoothstep(baseSize,0.0,shapeDist)*0.15;fc+=vec3(innerGlow);
+    float alpha=shapeDist<baseSize?1.0:gaussian(shapeDist-baseSize,0.15);alpha*=0.50;
+    gl_FragColor=vec4(fc,alpha);}`;
+    const _glowVS = `varying vec2 vUv;uniform float uHover;uniform float uExcited;uniform float uVoice;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
+    const _glowFS = shaderUtils + `
+    varying vec2 vUv;void main(){vec2 center=vUv-0.5;float dist=length(center)*2.0;float angle=atan(center.y,center.x);
+    float shapeDist=dist+cos(angle*uSymmetry)*(uTension*0.5);float alpha=gaussian(shapeDist,0.6);
+    float colorNoise=snoise(vec2(dist*1.5,angle-uTime*uSpeed*2.0))*0.4;float d_p=dist+colorNoise;
+    float sigma=0.5;float w1=gaussianWeight(d_p,0.0,sigma);float w2=gaussianWeight(d_p,0.8,sigma);float w3=gaussianWeight(d_p,1.6,sigma);
+    vec3 mc=(colorA*w1+colorB*w2+colorC*w3)/(w1+w2+w3);vec3 hsv=rgb2hsv(mc);
+    hsv.x=fract(hsv.x+uHueShift);hsv.y=(uSaturation+0.10);hsv.z=0.80;
+    gl_FragColor=vec4(hsv2rgb(hsv),alpha*0.22);}`;
+    const _partVS = shaderUtils + `
+    varying vec3 vColor;varying float vAlpha;void main(){
+    vec2 uv2=uv*2.0-1.0;vec2 rUV=rotate2d(uTime*uSpeed*0.5)*uv2;float r=length(rUV);float a=atan(rUV.y,rUV.x);
+    float shapeDist=r+cos(a*uSymmetry)*uTension;float mask=shapeDist<0.4?1.0:gaussian(shapeDist-0.4,0.08);
+    float colorNoise=snoise(vec2(r*1.5,a-uTime*uSpeed*2.0))*0.4;float r_p=r+colorNoise;
+    float sigma=0.4;float w1=gaussianWeight(r_p,0.0,sigma);float w2=gaussianWeight(r_p,0.6,sigma);float w3=gaussianWeight(r_p,1.2,sigma);
+    vec3 mc=(colorA*w1+colorB*w2+colorC*w3)/(w1+w2+w3);vec3 hsv=rgb2hsv(mc);hsv.x=fract(hsv.x+uHueShift);hsv.y=(uSaturation+0.10);hsv.z=0.80;vColor=hsv2rgb(hsv);
+    vec3 pos=position;float ts=uTime*0.25;float fs=0.036;
+    pos.x+=snoise(vec2(uv2.x,ts))*fs;pos.y+=snoise(vec2(uv2.y,ts))*fs;pos.z+=snoise(vec2(uv2.x+uv2.y,ts))*fs;
+    float baseSize=4.0+mask*3.0;gl_PointSize=baseSize*mask;vAlpha=mask;
+    if(mask<0.01)gl_PointSize=0.0;gl_Position=projectionMatrix*modelViewMatrix*vec4(pos,1.0);}`;
+    const _partFS = `varying vec3 vColor;varying float vAlpha;void main(){vec2 coord=gl_PointCoord-vec2(0.5);float dist=length(coord);float circle=exp(-(dist*dist)/(2.0*0.05));if(circle<0.01)discard;gl_FragColor=vec4(vColor,vAlpha*circle);}`;
+
+    const _miniScenes = [];
+    function createMiniScene(canvasEl, params, size) {
+      size = size || 400;
+      if (!window.THREE) return;
+      const THREE = window.THREE;
+      const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, alpha: true, antialias: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setSize(size, size);
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1.5, 1.5, 1.5, -1.5, 0.1, 10);
+      camera.position.z = 1;
+      const uniforms = {
+        uTime:{value:0},uHover:{value:0},uExcited:{value:0},uVoice:{value:0},
+        uHueShift:{value:parseFloat(params.hue)||0},
+        uSaturation:{value:parseFloat(params.saturation)||0.3},
+        uSymmetry:{value:parseFloat(params.symmetry)||3},
+        uTension:{value:parseFloat(params.tension)||0.1},
+        uDepth:{value:0},uSpeed:{value:parseFloat(params.speed)||0.08},
+        uMaterial:{value:0},uIsParticleMode:{value:1}
+      };
+      const glowGeo = new THREE.PlaneGeometry(2.4,2.4);
+      const glowMesh = new THREE.Mesh(glowGeo, new THREE.ShaderMaterial({vertexShader:_glowVS,fragmentShader:_glowFS,uniforms,transparent:true,depthWrite:false,blending:THREE.NormalBlending}));
+      glowMesh.position.z = -0.1; scene.add(glowMesh);
+      const partGeo = new THREE.PlaneGeometry(2.4,2.4,60,60);
+      const partMesh = new THREE.Points(partGeo, new THREE.ShaderMaterial({vertexShader:_partVS,fragmentShader:_partFS,uniforms,transparent:true,depthWrite:false,blending:THREE.NormalBlending}));
+      scene.add(partMesh);
+      const artGeo = new THREE.PlaneGeometry(2.4,2.4);
+      const artMesh = new THREE.Mesh(artGeo, new THREE.ShaderMaterial({vertexShader:_artVS,fragmentShader:_artFS,uniforms,transparent:true,depthWrite:false,blending:THREE.NormalBlending}));
+      artMesh.position.z = 0.05; scene.add(artMesh);
+      _miniScenes.push({ renderer, scene, camera, uniforms });
+    }
+
+    let _miniRafId;
+    function _miniAnimate() {
+      _miniRafId = requestAnimationFrame(_miniAnimate);
+      _miniScenes.forEach(s => { s.uniforms.uTime.value += 0.016; s.renderer.render(s.scene, s.camera); });
+    }
+
+    function buildGlobalVine() {
+      const W = window.innerWidth, H = window.innerHeight;
+      const TW = totalPages * W;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', `0 0 ${TW} ${H}`);
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.style.cssText = `position:absolute;top:0;left:0;width:${TW}px;height:${H}px;pointer-events:none;z-index:0;overflow:visible;`;
+
+      STRANDS.forEach(([ampMul, phase, yOff, color, sw]) => {
+        const N = Math.max(64, 32 * totalPages);
+        const pts = Array.from({length: N}, (_, i) => {
+          const gxFrac = i / (N - 1) * totalPages; // 0..totalPages in page-width units
+          return { x: gxFrac * W, y: waveYAt(gxFrac, ampMul, phase, yOff, H) };
+        });
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', catmullRomPath(pts));
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', String(sw));
+        path.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(path);
+      });
+
+      // Leaves at every node across all pages
+      for (let pg = 0; pg < totalPages; pg++) {
+        const slice = records.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE);
+        slice.forEach((r, i) => {
+          if (i >= NODE_X_FRACS.length) return;
+          const xFrac = NODE_X_FRACS[i];
+          const gx = (pg + xFrac) * W;
+          const gy = waveYAt(pg + xFrac, 1, 0, 0, H);
+          [-20, 18].forEach((ddx, k) => {
+            const leaf = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+            leaf.setAttribute('cx', String(gx + ddx));
+            leaf.setAttribute('cy', String(gy - 14 + k * 8));
+            leaf.setAttribute('rx', '7'); leaf.setAttribute('ry', '3.5');
+            leaf.setAttribute('fill', 'rgba(70,105,45,0.20)');
+            leaf.setAttribute('transform', `rotate(${k === 0 ? -35 : 20},${gx + ddx},${gy - 14 + k * 8})`);
+            svg.appendChild(leaf);
+          });
+        });
+      }
+      strip.insertBefore(svg, strip.firstChild);
+    }
+
+    function buildPage(pageRecords, pageIdx, globalOffset) {
+      const page = document.createElement('div');
+      page.className = 'vine-page';
+      const W = window.innerWidth, H = window.innerHeight;
+
+      // Node positions: on the global continuous vine (use global x fraction)
+      const activeNodes = pageRecords.map((r, i) => {
+        const xFrac = NODE_X_FRACS[i];
+        const globalXFrac = pageIdx + xFrac;
+        const gy = waveYAt(globalXFrac, 1, 0, 0, H);
+        return { px: xFrac * 100, py: gy / H * 100, record: r };
+      });
+
+      // Nodes
+      activeNodes.forEach((n, i) => {
+        const r = n.record;
+        const p = r.params || {};
+        const params = {
+          symmetry: p.symmetry ?? 3, tension: p.tension ?? 0.1,
+          hue: p.hueShift ?? 0, saturation: p.saturation ?? 0.2
+        };
+        const globalIdx = globalOffset + i;
+        const qs = new URLSearchParams({
+          userName: r.userName || '', taName: r.taName || 'TA',
+          symmetry: String(params.symmetry), tension: String(params.tension),
+          hue: String(params.hue), saturation: String(params.saturation),
+          material: String(p.material ?? 4), speed: String(p.speed ?? 0.08)
+        });
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'vine-node';
+        nodeEl.style.left = n.px + '%';
+        nodeEl.style.top = n.py + '%';
+        const canvas = document.createElement('canvas');
+        canvas.className = 'flower-canvas';
+        const canvasSize = (globalIdx % 2 === 0) ? 500 : 400;
+        canvas.style.width = canvasSize + 'px';
+        canvas.style.height = canvasSize + 'px';
+        createMiniScene(canvas, params, canvasSize);
+        const nameEl = document.createElement('div');
+        nameEl.className = 'petal-label petal-name';
+        nameEl.textContent = (r.taName || 'TA') + '的世界';
+        const dateEl = document.createElement('div');
+        dateEl.className = 'petal-label petal-date';
+        dateEl.textContent = r.dateStr || '';
+        const delBtn = document.createElement('button');
+        delBtn.className = 'node-delete';
+        delBtn.innerHTML = '×';
+        delBtn.title = '删除';
+        delBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          if (!confirm('确定要删除这条记录吗？')) return;
+          try {
+            records.splice(globalIdx, 1);
+            localStorage.setItem('nierzheyu_records', JSON.stringify(records));
+            location.reload();
+          } catch(_) {}
+        });
+        nodeEl.appendChild(canvas);
+        nodeEl.appendChild(nameEl);
+        nodeEl.appendChild(dateEl);
+        nodeEl.appendChild(delBtn);
+        nodeEl.addEventListener('click', () => { window.location.href = 'anima_12.html?' + qs.toString(); });
+        page.appendChild(nodeEl);
+      });
+      return page;
+    }
+
+    function renderDots() {
+      dotsEl.innerHTML = '';
+      for (let i = 0; i < totalPages; i++) {
+        const d = document.createElement('div');
+        d.className = 'page-dot' + (i === curPage ? ' active' : '');
+        dotsEl.appendChild(d);
+      }
+    }
+
+    function goToPage(p) {
+      curPage = Math.max(0, Math.min(p, totalPages - 1));
+      strip.style.transform = `translateX(${-curPage * 100}vw)`;
+      renderDots();
+    }
+
+    if (records.length === 0) {
+      const emp = document.createElement('div');
+      emp.className = 'empty-state';
+      emp.innerHTML = '还没有记录。<br>去首页点击「回忆与TA的细节」，开启一段新的旅程吧。';
+      document.body.appendChild(emp);
+    } else {
+      for (let pg = 0; pg < totalPages; pg++) {
+        const slice = records.slice(pg * PER_PAGE, (pg + 1) * PER_PAGE);
+        strip.appendChild(buildPage(slice, pg, pg * PER_PAGE));
+      }
+      buildGlobalVine();
+      renderDots();
+      if (_miniScenes.length) _miniAnimate();
+    }
+
+    // Wheel → horizontal page scroll
+    let wheelLocked = false;
+    window.addEventListener('wheel', e => {
+      e.preventDefault();
+      if (wheelLocked) return;
+      const dir = e.deltaY > 0 || e.deltaX > 0 ? 1 : -1;
+      if ((dir > 0 && curPage < totalPages - 1) || (dir < 0 && curPage > 0)) {
+        goToPage(curPage + dir);
+        wheelLocked = true;
+        setTimeout(() => { wheelLocked = false; }, 800);
+      }
+    }, { passive: false });
+
+    // Touch swipe
+    let touchX = 0;
+    window.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+    window.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) > 50) goToPage(curPage + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+
+    // 主题切换
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      themeToggle.innerHTML = isDark
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 14.0784C20.3003 14.7189 18.9301 15.0821 17.4751 15.0821C12.7491 15.0821 8.91792 11.2509 8.91792 6.52485C8.91792 5.06986 9.28105 3.69968 9.92163 2.5C5.66765 3.49698 2.5 7.31513 2.5 11.8731C2.5 17.1899 6.8101 21.5 12.1269 21.5C16.6849 21.5 20.503 18.3324 21.5 14.0784Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    });
+  })();
+  </script>
+  <script>
+  // 弥散漂浮光点生成
+  (function(){
+    const container = document.getElementById('histOrbs');
+    if (!container) return;
+    const configs = [
+      // [size, color, peakOpacity, count]
+      [5,  'rgba(200,220,160,0.65)', 0.55, 8],
+      [8,  'rgba(240,235,200,0.50)', 0.42, 6],
+      [12, 'rgba(160,195,120,0.40)', 0.32, 5],
+      [18, 'rgba(255,248,210,0.30)', 0.22, 4],
+      [26, 'rgba(180,210,140,0.20)', 0.16, 3],
+    ];
+    configs.forEach(([size, color, peak, count]) => {
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = 'hist-orb';
+        const s = size * (0.7 + Math.random() * 0.7);
+        el.style.cssText = [
+          `width:${s}px`, `height:${s}px`,
+          `left:${Math.random()*100}%`,
+          `bottom:${-s}px`,
+          `background:radial-gradient(circle,${color} 0%,transparent 70%)`,
+          `--dx:${(Math.random()-0.5)*60}px`,
+          `--peak:${peak * (0.6 + Math.random()*0.4)}`,
+          `animation-duration:${8 + Math.random()*14}s`,
+          `animation-delay:${-Math.random()*20}s`,
+          `filter:blur(${s*0.18}px)`
+        ].join(';');
+        container.appendChild(el);
+      }
+    });
+  })();
+  </script>
+  <script>
+(function(){
+var _tracks=['研究生毕设/info.mp3','研究生毕设/sunsetflowerray-a-fond-memory-116759.mp3'];
+var _ti=0;
+var _aud=new Audio(_tracks[_ti]);_aud.loop=true;_aud.volume=0.30;
+var on=false;
+function startM(){_aud.play().catch(function(){});on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}
+function stopM(){_aud.pause();on=false;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.remove('m-on');});}
+function nextTrack(){_ti=(_ti+1)%_tracks.length;_aud.pause();_aud.src=_tracks[_ti];_aud.currentTime=0;if(on)_aud.play().catch(function(){});}
+var auto=false;function tryAuto(){if(auto)return;auto=true;startM();}
+window.addEventListener('load',function(){setTimeout(function(){try{tryAuto();}catch(e){}},400);});
+document.addEventListener('click',function f(){tryAuto();document.removeEventListener('click',f);},{once:true});
+document.querySelectorAll('.m-play').forEach(function(b){b.addEventListener('click',function(){on?stopM():startM();});});
+document.querySelectorAll('.m-next').forEach(function(b){b.addEventListener('click',nextTrack);});
+document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});
+var _bc=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('nz_music'):null,_su=0;
+function _sd(m){if(Date.now()<_su)return;if(_bc)_bc.postMessage(m);try{localStorage.setItem('_nzM',JSON.stringify(Object.assign({},m,{_ts:Date.now()})));}catch(e){}}
+function _ap(m){if(!m)return;_su=Date.now()+250;var b=document.getElementById('music-btn'),w=document.getElementById('music-widget');if(!b)return;var io=w&&w.classList.contains('m-on');if(m.t==='play'&&!io)b.click();else if(m.t==='stop'&&io)b.click();}
+if(_bc)_bc.onmessage=function(e){_ap(e.data);};
+window.addEventListener('storage',function(e){if(e.key==='_nzM')try{_ap(JSON.parse(e.newValue));}catch(e){}});
+var _sm=startM,_stm=stopM,_nt=nextTrack;
+startM=function(){_sm();if(Date.now()>=_su)_sd({t:'play'});};
+stopM=function(){_stm();if(Date.now()>=_su)_sd({t:'stop'});};
+nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
+})();
+  </script>
+  <div id="custom-cursor"><img id="cursor-img" src="研究生毕设/鼠标normal.png" alt=""></div>
+  <script>
+  (function(){
+    var c=document.getElementById('custom-cursor'),im=document.getElementById('cursor-img');
+    if(!c||!im)return;
+    var N='研究生毕设/鼠标normal.png',H='研究生毕设/鼠标hover.png',hovering=false;
+    function isInteractive(el){while(el&&el!==document.body){var t=el.tagName;if(t==='A'||t==='BUTTON'||t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='LABEL')return true;if(el.getAttribute&&el.getAttribute('role')==='button')return true;try{if(window.getComputedStyle(el).cursor==='pointer')return true;}catch(e){}el=el.parentElement;}return false;}
+    document.addEventListener('mousemove',function(e){c.style.transform='translate('+(e.clientX-17)+'px,'+(e.clientY-17)+'px)';c.classList.add('show');});
+    document.addEventListener('mouseleave',function(){c.classList.remove('show');});
+    document.addEventListener('mouseover',function(e){hovering=isInteractive(e.target);im.src=hovering?H:N;});
+    document.addEventListener('mousedown',function(){im.src=H;});
+    document.addEventListener('mouseup',function(){im.src=hovering?H:N;});
+  })();
+  </script>
+</body>
+</html>

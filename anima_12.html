@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Anima — Interactive Particle Consciousness</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+/* ── 本地字体 FZBYKSJW ── */
+@font-face {
+  font-family: 'FZBYKSJW';
+  src: url('FZBYKSJW.TTF') format('truetype'),
+       local('FZBYKSJW'), local('FZBaoYKS-J-W'), local('方正标雅楷书简体');
+  font-weight: normal; font-style: normal;
+  font-display: swap;
+}
+
+/* 全局所有元素使用 FZBYKSJW，回退到系统字体 */
+* {
+  font-family: 'FZBYKSJW', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif !important;
+}
+
+#anima-root {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Background layers ── */
+#bg-sharp { position: absolute; top:-40px; left:-40px; width:calc(100% + 80px); height:calc(100% + 80px); z-index:0; filter:brightness(1.12) saturate(0.70); opacity:0.52; }
+#bg-blur  { position: absolute; top:-40px; left:-40px; width:calc(100% + 80px); height:calc(100% + 80px); z-index:1; filter:blur(32px) brightness(1.12) saturate(0.70); opacity:0.52; }
+#grain-overlay { position: absolute; inset:0; z-index:2; pointer-events:none; opacity:0.45; }
+
+/* ── Weather dim overlay (below weather canvas) ── */
+#weather-dim {
+  position: fixed; inset:0; z-index:3; pointer-events:none;
+  background: rgba(20,30,45,0); transition: background .8s ease;
+}
+#weather-dim.active { background: rgba(20,30,45,.30); }
+
+/* ── Weather canvas (above dim, high z so particles are visible) ── */
+#weather-canvas { position:fixed; inset:0; z-index:4; pointer-events:none; width:100%; height:100%; }
+
+/* ── Three.js ── */
+#three-canvas-container { position:absolute; inset:0; z-index:5; cursor:default; }
+
+/* ── Edge mask (dissolves square border of Three.js canvas) ── */
+#figure-edge-mask {
+  position:absolute; inset:0; z-index:7; pointer-events:none;
+  box-shadow: inset 0 0 clamp(80px,14vw,160px) clamp(50px,10vw,120px) rgba(236,240,244,0.90);
+}
+
+/* ── Ripple canvas ── */
+#ripple-canvas { position:absolute; inset:0; z-index:8; pointer-events:none; }
+
+/* ── UI layer ── */
+#ui-layer {
+  position: relative; z-index:10;
+  display: flex; flex-direction:column; height:100%;
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════
+   TOP BAR  — 与历史记录页一致，保留英文副标题
+   ════════════════════════════════════════ */
+#top-bar {
+  pointer-events: all;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: clamp(12px,2vh,22px) clamp(16px,2.5vw,28px) 0;
+  flex-shrink: 0;
+}
+#top-left {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  pointer-events: all; text-decoration: none; color: inherit;
+}
+.back-btn {
+  width: 32px; height: 32px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; padding: 0;
+}
+.back-btn svg { width: 32px; height: 32px; }
+#top-title-wrap { display:flex; flex-direction:column; gap:2px; }
+#artwork-title {
+  font-size: 24px;
+  font-weight: 600; letter-spacing: .5px;
+  background: linear-gradient(180deg, rgba(0,22,3,1) 0%, rgba(0,70,9,1) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+body.dark #artwork-title {
+  background: linear-gradient(180deg, #8EC89D 0%, #FFF 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+#artwork-sub {
+  font-size: 20px; letter-spacing: .5px;
+  color: rgba(80,95,110,.45);
+}
+
+#top-right { display:flex; align-items:center; gap:12px; }
+#freeze-btn {
+  pointer-events: all; cursor: pointer;
+  padding: 10px 24px; border-radius: 20px;
+  border: 1px solid rgba(60,80,60,.28);
+  background: rgba(255,255,255,.45);
+  color: rgba(40,60,40,.72);
+  font-size: 13px; letter-spacing: 1px;
+  backdrop-filter: blur(8px);
+  transition: all .25s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+#freeze-btn:hover { background: rgba(255,255,255,.7); border-color: rgba(60,80,60,.45); color: rgba(30,50,30,.9); }
+
+/* ── Music widget ── */
+.m-widget {
+  pointer-events: all; cursor: default;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 56px; height: 34px; border-radius: 17px;
+  border: 1px solid rgba(60,80,60,.28);
+  background: rgba(255,255,255,.45);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  transition: background .25s, border-color .25s;
+  flex-shrink: 0;
+}
+.m-widget:hover { background: rgba(255,255,255,.70); border-color: rgba(60,80,60,.45); }
+.m-widget.m-on { border-color: rgba(100,150,100,.55); }
+.m-bars {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 3px; transition: opacity .18s;
+}
+.m-bars span {
+  display: block; width: 2px; height: 3px;
+  border-radius: 2px; background: rgba(40,60,40,.55);
+}
+.m-widget.m-on .m-bars span:nth-child(1) { animation: mwave .52s ease-in-out 0s infinite alternate; }
+.m-widget.m-on .m-bars span:nth-child(2) { animation: mwave .68s ease-in-out .09s infinite alternate; }
+.m-widget.m-on .m-bars span:nth-child(3) { animation: mwave .56s ease-in-out .17s infinite alternate; }
+.m-widget.m-on .m-bars span:nth-child(4) { animation: mwave .64s ease-in-out .04s infinite alternate; }
+.m-widget.m-on .m-bars span:nth-child(5) { animation: mwave .58s ease-in-out .12s infinite alternate; }
+@keyframes mwave { from { height: 3px; opacity: .3; } to { height: 14px; opacity: .82; } }
+.m-widget:hover .m-bars { opacity: 0; }
+.m-ctrls {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; padding: 0 5px; opacity: 0; transition: opacity .18s;
+}
+.m-widget:hover .m-ctrls { opacity: 1; }
+.m-ctrl {
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(40,60,40,.78); padding: 3px; border-radius: 4px;
+  transition: color .18s;
+}
+.m-ctrl:hover { color: rgba(20,50,20,.95); }
+.m-widget .icon-pause { display: none; }
+.m-widget.m-on .icon-play { display: none; }
+.m-widget.m-on .icon-pause { display: block; }
+.m-label { font-size: 8px; letter-spacing: 1px; color: rgba(40,60,40,.55); min-width: 8px; text-align: center; }
+
+/* ════════════════════════════════════════
+   CHAT ZONE — left-aligned, 你/我 labels
+   ════════════════════════════════════════ */
+#chat-zone {
+  flex: 1; min-height: 0; position: relative;
+  transition: opacity .5s ease, transform .5s ease;
+}
+#chat-zone.hidden { opacity:0; transform:translateY(14px); pointer-events:none; }
+
+/* ------------------------------------------------------------------
+   收起/展开按钮：绝对定位，输入框上方 30px
+   输入框 bottom ≈ max(100px,…)，高度 ≈ 95px，再上 30px
+   ------------------------------------------------------------------ */
+#chat-toggle-btn {
+  position: absolute;
+  bottom: calc(max(100px, env(safe-area-inset-bottom, 0px) + 90px) + 95px + 30px);
+  left: clamp(14px,2.5vw,28px);
+  display: none; align-items: center; gap: 4px;
+  padding: 3px 10px 3px 8px;
+  background: rgba(255,255,255,.30); backdrop-filter: blur(8px);
+  border: 1px solid rgba(160,195,165,.40); border-radius: 20px;
+  font-size: 10px; letter-spacing: 1px; color: rgba(40,70,50,.70);
+  cursor: pointer; pointer-events: all; z-index: 12;
+  transition: background .2s;
+}
+#chat-toggle-btn:hover { background: rgba(255,255,255,.55); }
+#chat-toggle-btn svg { transition: transform .35s ease; flex-shrink: 0; }
+#chat-zone.has-messages #chat-toggle-btn { display: flex; }
+#chat-zone.collapsed #chat-toggle-btn svg { transform: rotate(180deg); }
+
+/* ------------------------------------------------------------------
+   消息区：绝对定位，占满 chat-zone，底边紧贴按钮上方 30px
+   按钮 bottom + 按钮高(26px) + 30px 间距
+   ------------------------------------------------------------------ */
+#messages-area {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  bottom: calc(max(100px, env(safe-area-inset-bottom, 0px) + 90px) + 95px + 30px + 26px + 20px);
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: clamp(12px,2vh,20px) clamp(12px,3vw,28px) 4px;
+  gap: clamp(10px,1.5vh,18px);
+  scroll-behavior: smooth;
+  pointer-events: all;
+  transition: opacity .35s ease;
+}
+/* 占位块：内容少时把消息推到底部 */
+#msg-spacer { flex: 1; }
+
+#chat-zone.collapsed #messages-area { opacity: 0; overflow: hidden; pointer-events: none; }
+
+/* 自定义滚动条 */
+#messages-area::-webkit-scrollbar { width: 3px; }
+#messages-area::-webkit-scrollbar-track { background: transparent; }
+#messages-area::-webkit-scrollbar-thumb { background: rgba(100,150,110,.25); border-radius: 3px; }
+#messages-area::-webkit-scrollbar-thumb:hover { background: rgba(100,150,110,.45); }
+
+/* Each message row: label + text */
+.msg-row {
+  display: flex; flex-direction: column; gap: 3px;
+  align-items: flex-start;
+  animation: fadeUp .45s ease;
+}
+.msg-label {
+  font-size: clamp(10px,.9vw,12px);
+  letter-spacing: .8px; font-weight: 600;
+  padding: 0 2px;
+  font-family: inherit;
+}
+.msg-label.label-ai  { color: rgba(45,95,65,.80); }
+.msg-label.label-user { color: rgba(55,80,130,.72); }
+
+.msg {
+  max-width: min(65%,440px);
+  padding: 1px 2px;
+  font-size: clamp(13px,1.15vw,15px); line-height: 1.70;
+  pointer-events: none; font-weight: 500;
+  background: none; border: none;
+}
+.msg.ai  { color: rgba(30,58,42,.90); }
+.msg.user { color: rgba(30,48,88,.88); }
+.msg.ai.typing span {
+  display:inline-block; width:4px; height:4px; border-radius:50%;
+  background:rgba(55,105,75,.5); animation:blink 1.2s infinite; margin:0 2px;
+}
+.msg.ai.typing span:nth-child(2){animation-delay:.2s}
+.msg.ai.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ════════════════════════════════════════
+   INPUT BOX — bottom-left, ChatGPT style
+   ════════════════════════════════════════ */
+#input-row {
+  pointer-events: all;
+  position: absolute;
+  bottom: max(100px, calc(env(safe-area-inset-bottom) + 90px));
+  left: clamp(14px,2.5vw,28px);
+  width: clamp(260px,42vw,520px);
+  display: flex; flex-direction: column;
+  border-radius: 26px;
+  background: rgba(255,255,255,.06);
+  border: 2px solid rgba(35,92,0,0.5);
+  backdrop-filter: blur(8px);
+  box-shadow: none;
+  transition: opacity .5s ease, transform .5s ease, box-shadow .25s ease;
+  overflow: hidden;
+}
+#input-row.hidden { opacity:0; transform:translateY(12px); pointer-events:none; }
+#input-row.focused { box-shadow: 0 4px 20px 0 rgba(82,170,28,0.5); }
+
+#input-toolbar {
+  display: flex; align-items: center;
+  padding: clamp(8px,1vw,12px) clamp(10px,1.4vw,16px) clamp(4px,.6vw,6px);
+}
+#chat-input {
+  flex:1; min-width:0;
+  background: transparent; border: none;
+  padding: 4px 4px;
+  color: rgba(35,48,62,.9); font-size: clamp(12px,1.1vw,14px);
+  font-family: inherit; outline: none; letter-spacing: .2px;
+  line-height: 1.5;
+}
+#chat-input::placeholder { color: rgba(80,110,140,.55); }
+
+#input-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: clamp(4px,.5vw,6px) clamp(10px,1.4vw,16px) clamp(8px,1vw,12px);
+  border-top: 1px solid rgba(160,200,220,.35);
+}
+#input-left-actions { display:flex; align-items:center; gap:6px; }
+
+.icon-btn {
+  width: clamp(26px,2.8vw,32px); height: clamp(26px,2.8vw,32px);
+  border-radius: 50%; border: .5px solid rgba(180,200,220,.38);
+  background: rgba(255,255,255,.55); color: rgba(75,95,115,.65);
+  cursor: pointer; display:flex; align-items:center; justify-content:center;
+  transition: all .22s; flex-shrink:0; font-family: inherit;
+  font-size: clamp(11px,1.1vw,13px);
+}
+.icon-btn:hover { background:rgba(220,232,245,.8); border-color:rgba(155,185,215,.5); color:rgba(45,75,115,.9); }
+#voice-btn.active { background:rgba(235,185,175,.45); border-color:rgba(210,145,135,.5); color:rgba(150,60,50,.9); animation:vpulse 1s infinite; }
+#imm-toggle-btn.active { background:rgba(195,215,240,.45); border-color:rgba(150,185,220,.5); color:rgba(45,80,130,.9); }
+@keyframes vpulse{0%,100%{box-shadow:0 0 0 0 rgba(200,130,120,.25)}50%{box-shadow:0 0 0 5px rgba(200,130,120,0)}}
+
+#send-btn {
+  width: clamp(28px,3vw,34px); height: clamp(28px,3vw,34px);
+  border-radius: 50%; border: none;
+  background: rgba(35,92,0,.82); color: rgba(255,255,255,.95);
+  cursor: pointer; display:flex; align-items:center; justify-content:center;
+  transition: all .22s; flex-shrink:0;
+}
+#send-btn:hover { background:rgba(35,92,0,1); transform:scale(1.06); }
+
+/* ════════════════════════════════════════
+   BOTTOM BAR — 与首页样式一致
+   ════════════════════════════════════════ */
+#bottom-bar {
+  pointer-events: all;
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 30px 40px;
+  z-index: 11;
+  font-family: 'FZBYKSJW', 'PingFang SC', sans-serif;
+}
+#bottom-left {
+  display: flex; flex-direction: column; gap: 1px;
+  pointer-events: none;
+}
+#bottom-note-line1,
+#bottom-note-line2 {
+  font-size: 14px;
+  color: rgba(0, 26, 8, 0.6);
+  letter-spacing: 1px;
+  line-height: 1.4;
+}
+#bottom-center {
+  font-size: 14px;
+  color: rgba(0, 26, 8, 0.5);
+  letter-spacing: .5px; pointer-events: none;
+  position: absolute; left:50%; transform:translateX(-50%);
+  bottom: 30px;
+}
+#bottom-right {
+  display: flex; align-items: center; gap: 20px;
+}
+.bottom-link {
+  font-size: 14px;
+  color: rgba(0, 26, 8, 0.6);
+  letter-spacing: .5px; cursor: pointer; pointer-events: all;
+  text-decoration: none; transition: color 0.3s ease;
+  background: none; border: none; font-family: inherit;
+}
+.bottom-link:hover { color: #001A08; }
+
+/* 暗色模式 - 底部信息 */
+body.dark #bottom-note-line1,
+body.dark #bottom-note-line2 {
+  color: rgba(255, 255, 255, 0.5);
+}
+body.dark #bottom-center {
+  color: rgba(255, 255, 255, 0.4);
+}
+body.dark .bottom-link {
+  color: rgba(255, 255, 255, 0.5);
+}
+body.dark .bottom-link:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ════════════════════════════════════════
+   RIGHT SIDE BUTTONS
+   ════════════════════════════════════════ */
+#side-btns {
+  position: absolute; right: clamp(10px,1.8vw,20px); top:50%; transform:translateY(-50%);
+  z-index: 20; display:flex; flex-direction:column; gap:clamp(8px,1.2vw,14px);
+  pointer-events: all;
+}
+.side-btn {
+  width: clamp(34px,3.8vw,44px); height: clamp(34px,3.8vw,44px);
+  border-radius: 50%; border: .5px solid rgba(200,215,205,.6);
+  background: rgba(255,255,255,.38); color: rgba(65,85,70,.65);
+  cursor: pointer; display:flex; align-items:center; justify-content:center;
+  backdrop-filter: blur(12px); transition: all .28s;
+  font-size: clamp(14px,1.6vw,18px); line-height:1; position:relative;
+}
+.side-btn:hover { background:rgba(255,255,255,.58); border-color:rgba(160,195,165,.75); color:rgba(40,68,48,.9); transform:scale(1.06); }
+.side-btn.active { background:rgba(195,225,205,.45); border-color:rgba(130,180,145,.65); color:rgba(35,90,50,.9); }
+.side-btn-label {
+  position:absolute; right:calc(100% + 8px); top:50%; transform:translateY(-50%);
+  font-size:9px; letter-spacing:1.5px; white-space:nowrap;
+  color:rgba(55,75,60,.42); text-transform:uppercase; pointer-events:none;
+  opacity:0; transition:opacity .2s;
+}
+.side-btn:hover .side-btn-label { opacity:1; }
+
+/* ════════════════════════════════════════
+   IMMERSIVE VOICE MODE
+   ════════════════════════════════════════ */
+#immersive-zone {
+  position:absolute; inset:0; z-index:20;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .6s ease;
+}
+#immersive-zone.active{opacity:1;pointer-events:all}
+#imm-center{display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.5vw,14px);padding-bottom:clamp(40px,8vh,70px)}
+#wave-bar{display:flex;align-items:center;justify-content:center;gap:3px;height:32px;opacity:0;transition:opacity .4s ease}
+#wave-bar.visible{opacity:1}
+#wave-bar span{display:block;width:3px;height:4px;border-radius:3px;background:rgba(80,110,90,.4);transform-origin:center}
+#wave-bar.speaking span{animation:wavebar .6s ease-in-out infinite alternate}
+#wave-bar.speaking span:nth-child(1){animation-delay:.00s}#wave-bar.speaking span:nth-child(2){animation-delay:.09s}
+#wave-bar.speaking span:nth-child(3){animation-delay:.18s}#wave-bar.speaking span:nth-child(4){animation-delay:.05s}
+#wave-bar.speaking span:nth-child(5){animation-delay:.14s}#wave-bar.speaking span:nth-child(6){animation-delay:.22s}
+#wave-bar.speaking span:nth-child(7){animation-delay:.03s}
+@keyframes wavebar{from{height:3px;opacity:.25}to{height:24px;opacity:.7}}
+#imm-mic-btn{width:clamp(48px,6vw,64px);height:clamp(48px,6vw,64px);border-radius:50%;border:.5px solid rgba(200,220,205,.55);background:rgba(255,255,255,.35);backdrop-filter:blur(14px);color:rgba(70,100,80,.75);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .35s;}
+#imm-mic-btn:hover{background:rgba(255,255,255,.55);border-color:rgba(160,200,170,.7)}
+#imm-mic-btn.speaking{background:rgba(215,190,185,.32);border-color:rgba(195,158,148,.6);color:rgba(140,62,52,.88);animation:immspeak 1.4s ease-in-out infinite}
+@keyframes immspeak{0%,100%{box-shadow:0 0 0 0 rgba(190,145,135,.3)}50%{box-shadow:0 0 0 12px rgba(190,145,135,0)}}
+#imm-status{font-size:clamp(9px,1vw,11px);letter-spacing:2px;color:rgba(70,90,75,.38);text-transform:uppercase;text-align:center;height:16px}
+#imm-transcript{font-size:clamp(11px,1.2vw,13px);color:rgba(50,70,55,.62);text-align:center;max-width:min(260px,70vw);min-height:18px;font-style:italic;letter-spacing:.3px;line-height:1.6}
+#imm-reply{font-size:clamp(10px,1.1vw,12px);color:rgba(65,85,70,.52);text-align:center;max-width:min(280px,72vw);min-height:16px;line-height:1.65;margin-top:2px}
+#imm-close-btn{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:none;border:none;color:rgba(70,90,75,.32);font-size:clamp(8px,.9vw,10px);letter-spacing:2px;cursor:pointer;text-transform:uppercase;font-family:inherit;transition:color .2s;pointer-events:all}
+#imm-close-btn:hover{color:rgba(50,75,55,.65)}
+
+/* ── Breathe mode back button ── */
+#breathe-back-btn {
+  position: absolute; bottom: max(28px, env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,.38); border: .5px solid rgba(200,215,205,.6);
+  color: rgba(55,80,60,.55); font-size: clamp(10px,.9vw,12px);
+  letter-spacing: 2px; cursor: pointer; text-transform: uppercase;
+  font-family: inherit; transition: all .2s; pointer-events: all;
+  padding: 7px 20px; border-radius: 20px; backdrop-filter: blur(10px);
+  display: none;
+}
+#breathe-back-btn:hover { background: rgba(255,255,255,.6); color: rgba(35,60,40,.82); }
+#breathe-back-btn.visible { display: block; }
+
+/* ── Call (通话) mode zone ── */
+#call-zone {
+  position: absolute; inset: 0; z-index: 25;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .6s ease;
+}
+#call-zone.active { opacity: 1; pointer-events: all; }
+
+/* Text appears directly below figure center — no borders, Grok style */
+#call-content {
+  display: flex; flex-direction: column; align-items: center;
+  gap: clamp(10px,2vh,18px);
+  /* push content to lower half below figure */
+  margin-top: clamp(240px,38vh,380px);
+  width: min(320px,80vw);
+}
+#call-listening-indicator {
+  display: flex; align-items: center; gap: 5px;
+  opacity: 0; transition: opacity .4s;
+}
+#call-listening-indicator.visible { opacity: 1; }
+#call-listening-indicator span {
+  display: block; width: 4px; border-radius: 4px;
+  background: rgba(55,80,65,.5); transform-origin: bottom;
+  animation: callbar .6s ease-in-out infinite alternate;
+}
+#call-listening-indicator span:nth-child(1){height:8px;animation-delay:.00s}
+#call-listening-indicator span:nth-child(2){height:16px;animation-delay:.10s}
+#call-listening-indicator span:nth-child(3){height:22px;animation-delay:.05s}
+#call-listening-indicator span:nth-child(4){height:16px;animation-delay:.15s}
+#call-listening-indicator span:nth-child(5){height:8px;animation-delay:.08s}
+@keyframes callbar{from{opacity:.25;transform:scaleY(.4)}to{opacity:.85;transform:scaleY(1)}}
+
+/* 通话消息列表 — 最多保留2轮对话 */
+#call-messages {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; overflow: hidden;
+}
+.call-msg {
+  font-size: clamp(13px,1.3vw,16px);
+  letter-spacing: .3px; line-height: 1.65;
+  text-align: center; width: 100%;
+  animation: callMsgUp .38s cubic-bezier(.2,.8,.4,1) both;
+  transition: opacity .4s;
+}
+.call-msg-you { color: rgba(45,62,55,.55); font-style: italic; }
+.call-msg-ai  { color: rgba(38,68,48,.82); }
+.call-msg-dim { opacity: 0.32; }
+@keyframes callMsgUp {
+  from { opacity:0; transform:translateY(14px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+/* interim：用户当前正在说的话 */
+#call-interim {
+  font-size: clamp(12px,1.2vw,15px);
+  color: rgba(45,62,55,.40); font-style: italic;
+  letter-spacing: .3px; text-align: center;
+  min-height: 18px; width: 100%;
+}
+#call-status {
+  font-size: clamp(9px,.85vw,11px);
+  letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(65,90,72,.38); text-align: center; min-height: 16px;
+}
+
+/* Hang-up / end call button — 固定在底部，不随消息移动 */
+#call-end-btn {
+  position: absolute;
+  bottom: max(88px, env(safe-area-inset-bottom, 0px) + 76px);
+  left: 50%; transform: translateX(-50%);
+  width: clamp(48px,5vw,58px); height: clamp(48px,5vw,58px);
+  border-radius: 50%; border: none;
+  background: rgba(195,65,55,.82); color: white;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .25s, box-shadow .25s;
+  box-shadow: 0 4px 16px rgba(195,65,55,.28);
+  z-index: 2;
+}
+#call-end-btn:hover { background: rgba(170,45,38,.92); box-shadow: 0 6px 20px rgba(195,65,55,.45); }
+
+/* call toggle button in input bar */
+#call-btn { }
+#call-btn.active { background: rgba(195,225,205,.45); border-color: rgba(130,180,145,.65); color: rgba(35,90,50,.9); }
+
+/* ── Voice input toggle (微信风格) ── */
+#voice-input-area {
+  flex:1; min-width:0; display:none;
+  align-items:center; justify-content:center;
+}
+#voice-hold-btn {
+  flex:1;
+  background: rgba(235,240,248,.55);
+  border: .5px solid rgba(185,205,228,.55);
+  border-radius: 10px;
+  padding: clamp(7px,.9vw,10px) 16px;
+  font-size: clamp(12px,1.1vw,14px);
+  color: rgba(55,75,105,.68);
+  cursor: pointer; font-family: inherit;
+  transition: all .18s; letter-spacing: .3px;
+  user-select: none;
+}
+#voice-hold-btn:active,
+#voice-hold-btn.pressing {
+  background: rgba(200,215,238,.75);
+  border-color: rgba(145,175,215,.65);
+  color: rgba(35,60,100,.85);
+  transform: scale(.98);
+}
+/* switch-mode button (keyboard↔mic icon) */
+#switch-input-btn {
+  flex-shrink:0;
+}
+
+/* Input row mode states */
+#input-row.voice-mode #input-toolbar { display:none; }
+#input-row.voice-mode #voice-input-area { display:flex; padding: clamp(8px,1vw,12px) clamp(10px,1.4vw,16px) clamp(4px,.6vw,6px); }
+
+/* gesture btn is now in #side-btns, no separate left panel needed */
+
+/* Gesture status indicator (top-left corner) */
+#gesture-status {
+  position: absolute; top: clamp(60px,8vh,80px); left: clamp(14px,2vw,22px);
+  z-index: 22; pointer-events:none;
+  font-size: 10px; letter-spacing:1.5px; text-transform:uppercase;
+  color: rgba(55,80,60,.45); opacity:0; transition: opacity .4s;
+}
+#gesture-status.visible { opacity:1; }
+
+/* Gesture camera preview (bottom-right) */
+#gesture-cam-preview {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  width: 160px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 30;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+#gesture-cam-preview.visible { opacity: 1; }
+#gesture-cam-preview .cam-label {
+  position: absolute;
+  bottom: 6px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,0.6);
+  pointer-events: none;
+  z-index: 2;
+}
+#gesture-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  display: block;
+}
+
+@media(max-width:480px){#artwork-sub{display:none}#side-btns{right:5px}#left-side-btns{left:5px}#bottom-center{display:none}}
+@media(max-height:500px) and (orientation:landscape){#imm-center{padding-bottom:20px}#bottom-bar{display:none}}
+
+#fluid-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:50;pointer-events:none;}
+
+/* ── 自定义光标 ── */
+*{cursor:none!important;}
+#custom-cursor{
+  position:fixed;top:0;left:0;
+  pointer-events:none;z-index:99999;
+  opacity:0;transition:opacity .15s;
+  filter:drop-shadow(0 0 5px rgba(140,210,120,.85)) drop-shadow(0 0 12px rgba(140,210,120,.40));
+  will-change:transform;
+}
+#custom-cursor.show{opacity:1;}
+#custom-cursor img{width:35px;height:35px;display:block;}
+</style>
+</head>
+<body>
+<div id="anima-root">
+  <canvas id="fluid-canvas"></canvas>
+
+  <div id="custom-cursor"><img id="cursor-img" src="研究生毕设/鼠标normal.png" alt=""></div>
+  <canvas id="bg-sharp"></canvas>
+  <canvas id="bg-blur"></canvas>
+  <canvas id="grain-overlay"></canvas>
+  <div id="weather-dim"></div>
+  <canvas id="weather-canvas"></canvas>
+  <div id="three-canvas-container"></div>
+  <div id="figure-edge-mask"></div>
+  <canvas id="ripple-canvas"></canvas>
+
+  <div id="ui-layer">
+    <!-- TOP BAR -->
+    <div id="top-bar">
+      <a id="top-left" href="index.html">
+        <button class="back-btn">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9.21313 20H34.9999" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M19.0454 31.5454L8.38405 20.884C7.89589 20.3958 7.8959 19.6044 8.38406 19.1162L19.0454 8.4551" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div id="top-title-wrap">
+          <div id="artwork-title">嘿嘿的世界</div>
+          <div id="artwork-sub">Hehe's World</div>
+        </div>
+      </a>
+      <div id="top-right">
+        <button id="freeze-btn">凝固的瞬间</button>
+        <div class="m-widget" id="music-widget">
+          <div class="m-bars">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="m-ctrls">
+            <button class="m-play m-ctrl" id="music-btn" title="播放/暂停">
+              <svg class="icon-play" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg class="icon-pause" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+            <span class="m-label"></span>
+            <button class="m-next m-ctrl" id="music-next-btn" title="下一首">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="5 4 15 12 5 20"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT ZONE -->
+    <div id="chat-zone">
+      <button id="chat-toggle-btn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <polyline points="18 15 12 9 6 15"/>
+        </svg>
+        <span id="chat-toggle-label">收起</span>
+      </button>
+      <div id="messages-area"><div id="msg-spacer"></div></div>
+    </div>
+
+    <!-- INPUT ROW -->
+    <div id="input-row">
+      <!-- TEXT MODE -->
+      <div id="input-toolbar">
+        <input id="chat-input" type="text" placeholder="输入你想对他说的话…" autocomplete="off"/>
+      </div>
+      <!-- VOICE MODE (hidden initially) -->
+      <div id="voice-input-area">
+        <button id="voice-hold-btn">按住 说话</button>
+      </div>
+      <div id="input-actions">
+        <div id="input-left-actions">
+          <!-- unified switch: mic icon = text mode → tap to go voice; kbd icon = voice mode → tap to go text -->
+          <button class="icon-btn" id="switch-input-btn" title="切换语音/文字">
+            <svg id="switch-icon-mic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+            <svg id="switch-icon-kbd" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/>
+              <line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/>
+              <line x1="6" y1="14" x2="18" y2="14"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="call-btn" title="通话">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </button>
+        </div>
+        <button id="send-btn" title="发送">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE BUTTONS (snow, rain, breathe, gesture) -->
+  <div id="side-btns">
+    <button class="side-btn" id="btn-snow">
+      <span class="side-btn-label">下雪</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="2" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        <line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="19.07" y2="4.93"/>
+        <circle cx="12" cy="12" r="2"/>
+      </svg>
+    </button>
+    <button class="side-btn" id="btn-rain">
+      <span class="side-btn-label">下雨</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="16" x2="8" y2="21"/><line x1="12" y1="19" x2="12" y2="24" style="display:none"/><line x1="16" y1="16" x2="16" y2="21"/>
+      </svg>
+    </button>
+    <button class="side-btn" id="btn-breathe">
+      <span class="side-btn-label">沉浸呼吸</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" stroke-dasharray="2 3"/><circle cx="12" cy="12" r="10" opacity=".35"/>
+      </svg>
+    </button>
+    <button class="side-btn" id="btn-gesture">
+      <span class="side-btn-label">手势交互</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Gesture status label -->
+  <div id="gesture-status">手势检测中…</div>
+  <!-- Camera preview for gesture recognition -->
+  <div id="gesture-cam-preview">
+    <video id="gesture-video" autoplay playsinline muted></video>
+    <span class="cam-label">手势区</span>
+  </div>
+
+  <!-- IMMERSIVE VOICE (keep but repurpose ◎ button) -->
+  <div id="immersive-zone">
+    <div id="imm-center">
+      <div id="imm-transcript"></div>
+      <div id="wave-bar"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <button id="imm-mic-btn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </button>
+      <div id="imm-status">轻触聆听</div>
+      <div id="imm-reply"></div>
+    </div>
+    <button id="imm-close-btn">← 返回</button>
+  </div>
+
+  <!-- CALL ZONE — Grok style, no borders, text below figure -->
+  <div id="call-zone">
+    <div id="call-content">
+      <div id="call-listening-indicator">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div id="call-messages"></div>
+      <div id="call-interim"></div>
+      <div id="call-status">正在接听…</div>
+    </div>
+    <button id="call-end-btn" title="结束通话">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="0">
+        <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottom-bar">
+    <div id="bottom-left">
+      <div id="bottom-note-line1">* The voice of</div>
+      <div id="bottom-note-line2">the one you miss</div>
+    </div>
+    <div id="bottom-center">（ Design ）</div>
+    <div id="bottom-right">
+      <button class="bottom-link" onclick="window.open('https://mp.weixin.qq.com/s/kFTKEX9SX6pO1rtiVlisIw','_blank')">Help</button>
+      <button class="bottom-link" onclick="alert('About 跳转链接待配置')">About</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+// ── Background ──
+const bgSharp=document.getElementById('bg-sharp'),bgBlur=document.getElementById('bg-blur');
+const sCtx=bgSharp.getContext('2d'),bCtx=bgBlur.getContext('2d');
+const grainCvs=document.getElementById('grain-overlay'),gCtx=grainCvs.getContext('2d');
+// 提前读取图形 hue，供主题选择时排除同色系背景
+const _earlyHue = parseFloat(new URLSearchParams(window.location.search).get('hue')) || 0;
+const THEMES=[
+  // 海岸 Coast — H≈205° 蓝色调
+  {type:'coast',skyTop:'#EDF3F7',skyMid:'#F1F6FA',skyBot:'#F4F8FB',sunTint:'#D5EAF5',horizon:'#E2EFF8',cloud:'rgba(255,255,255,0.75)',ridge:'rgba(172,198,218,0.20)',g0:'#C8DDE8',g1:'#B5CCDA',g2:'#A2BBCB',water:true},
+  // 森林 Forest — H≈120° 绿色调
+  {type:'forest',skyTop:'#EEF6EE',skyMid:'#F1F8F1',skyBot:'#F5FAF5',sunTint:'#D2EDD2',horizon:'#E0F2E0',cloud:'rgba(255,255,255,0.72)',ridge:'rgba(160,205,160,0.22)',g0:'#B5DDB5',g1:'#A0D0A0',g2:'#8CC28C',water:false},
+  // 山谷 Valley — H≈250° 紫色调
+  {type:'valley',skyTop:'#F0EEF7',skyMid:'#F3F1F9',skyBot:'#F6F4FB',sunTint:'#DDD8F0',horizon:'#E8E4F5',cloud:'rgba(255,255,255,0.70)',ridge:'rgba(178,168,215,0.22)',g0:'#CCBEE8',g1:'#BCA8D8',g2:'#AC98C8',water:false},
+  // 沙漠 Desert — H≈30° 暖橙色调
+  {type:'desert',skyTop:'#F7F3EE',skyMid:'#F9F5F1',skyBot:'#FBF8F4',sunTint:'#EEDFC5',horizon:'#F5EDD5',cloud:'rgba(255,255,255,0.65)',ridge:'rgba(210,185,155,0.22)',g0:'#EDD8B0',g1:'#E5CCA0',g2:'#DCC090',water:false},
+  // 雨林 Rainforest — H≈90° 黄绿色调
+  {type:'rainforest',skyTop:'#F2F7EE',skyMid:'#F5F9F1',skyBot:'#F8FAF4',sunTint:'#D5EEC0',horizon:'#E2F2D0',cloud:'rgba(255,255,255,0.72)',ridge:'rgba(148,198,135,0.22)',g0:'#B0D89A',g1:'#9CCC88',g2:'#88C076',water:false},
+  // 晨雾 Misty — H≈195° 中性蓝调
+  {type:'misty',skyTop:'#EFF4F7',skyMid:'#F2F6F9',skyBot:'#F5F9FB',sunTint:'#D2E8F5',horizon:'#DEEEF8',cloud:'rgba(255,255,255,0.88)',ridge:'rgba(165,190,210,0.25)',g0:'#C2D8E8',g1:'#B0C8D8',g2:'#9EB8C8',water:true},
+];
+function hex2rgba(h,a){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgba(${r},${g},${b},${a})`;}
+function drawScene(ctx,W,H){
+  const rng=()=>Math.random();
+  // 图形三基色 hue（pink≈0.833, yellow≈0.167, cyan≈0.500）加上用户 hue 偏移后，
+  // 判断 yellow 分量落在绿色区间（0.22-0.48）时排除绿色背景主题
+  const _sy=(0.167+_earlyHue+1)%1;
+  const _greenFig=_sy>=0.20&&_sy<=0.50;
+  const _pool=_greenFig?THEMES.filter(t=>t.type!=='forest'&&t.type!=='rainforest'):THEMES;
+  const T=_pool[Math.floor(rng()*_pool.length)];
+  const root=document.getElementById('anima-root');
+  if(root)root.style.background=T.skyBot;
+  const skyG=ctx.createLinearGradient(0,0,0,H*.65);skyG.addColorStop(0,T.skyTop);skyG.addColorStop(.5,T.skyMid);skyG.addColorStop(1,T.skyBot);ctx.fillStyle=skyG;ctx.fillRect(0,0,W,H);
+  const sx=W*(.2+rng()*.6),sy=H*(.08+rng()*.20),sr=W*.30;const sunG=ctx.createRadialGradient(sx,sy,0,sx,sy,sr);sunG.addColorStop(0,T.sunTint+'cc');sunG.addColorStop(.5,T.sunTint+'40');sunG.addColorStop(1,T.sunTint+'00');ctx.fillStyle=sunG;ctx.fillRect(0,0,W,H);
+  const nc=T.type==='misty'?9+Math.floor(rng()*5):T.type==='desert'?2+Math.floor(rng()*3):4+Math.floor(rng()*5);
+  for(let i=0;i<nc;i++){const cx=rng()*W,cy=H*(.03+rng()*(T.type==='misty'?.42:.30)),rw=50+rng()*150,rh=14+rng()*40;const cG=ctx.createRadialGradient(cx,cy,0,cx,cy,rw);cG.addColorStop(0,T.cloud);cG.addColorStop(.5,'rgba(255,255,255,0.18)');cG.addColorStop(1,'rgba(255,255,255,0)');ctx.save();ctx.scale(1,rh/rw);ctx.fillStyle=cG;ctx.beginPath();ctx.arc(cx,cy*(rw/rh),rw,0,Math.PI*2);ctx.fill();ctx.restore();}
+  const hG=ctx.createLinearGradient(0,H*.46,0,H*.70);hG.addColorStop(0,T.horizon+'88');hG.addColorStop(1,T.horizon+'00');ctx.fillStyle=hG;ctx.fillRect(0,H*.46,W,H*.24);
+  const gr=[T.g0,T.g1,T.g2];
+  if(T.type==='valley'){
+    for(let side=0;side<2;side++){const peakY=H*(.18+rng()*.12);ctx.beginPath();if(side===0){ctx.moveTo(0,H);ctx.lineTo(0,peakY);for(let x=0;x<=W*.45;x+=4)ctx.lineTo(x,peakY+x*(H*.42)/(W*.45)+Math.sin(x*.015)*H*.03);ctx.lineTo(W*.45,H);}else{ctx.moveTo(W,H);ctx.lineTo(W,peakY);for(let x=W;x>=W*.55;x-=4)ctx.lineTo(x,peakY+(W-x)*(H*.42)/(W*.45)+Math.sin(x*.015)*H*.03);ctx.lineTo(W*.55,H);}ctx.closePath();const vG=ctx.createLinearGradient(0,peakY,0,H);vG.addColorStop(0,hex2rgba(T.g0,.72));vG.addColorStop(1,hex2rgba(T.g2,.96));ctx.fillStyle=vG;ctx.fill();}
+    for(let l=0;l<2;l++){const by=H*(.62+l*.1),amp=H*.015,fr=.008+rng()*.004,ph=rng()*Math.PI*2;ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W;x+=3){const y=by+Math.sin(x*fr+ph)*amp;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.lineTo(W,H);ctx.closePath();const gG=ctx.createLinearGradient(0,by-amp,0,H);gG.addColorStop(0,hex2rgba(gr[l],.82));gG.addColorStop(1,hex2rgba(gr[Math.min(l+1,2)],.95));ctx.fillStyle=gG;ctx.fill();}
+  } else if(T.type==='desert'){
+    for(let l=0;l<3;l++){const by=H*(.50+l*.14),amp=H*(.09-l*.02),fr=.0025+rng()*.0015,ph=rng()*Math.PI*2;ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W;x+=3){const y=by+Math.sin(x*fr+ph)*amp+Math.sin(x*(fr*2.1)+ph*.7)*amp*.35;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.lineTo(W,H);ctx.closePath();const gG=ctx.createLinearGradient(0,by-amp,0,H);gG.addColorStop(0,hex2rgba(gr[l],.78));gG.addColorStop(1,hex2rgba(gr[Math.min(l+1,2)],.95));ctx.fillStyle=gG;ctx.fill();}
+    ctx.globalAlpha=.03;for(let i=0;i<3;i++){const hy=H*(.54+rng()*.05);ctx.beginPath();for(let x=0;x<=W;x+=6)x===0?ctx.moveTo(x,hy+Math.sin(x*.08)*1.5):ctx.lineTo(x,hy+Math.sin(x*.08+i)*1.5);ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=1.2;ctx.stroke();}ctx.globalAlpha=1;
+  } else {
+    const rph=rng()*Math.PI*2,ry=H*(.52+rng()*.04),ra=H*.07;ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W;x+=2){const y=ry+Math.sin(x*.007+rph)*ra+Math.sin(x*.003+rph*.6)*ra*.42;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.lineTo(W,H);ctx.closePath();const mG=ctx.createLinearGradient(0,ry-ra,0,ry+ra);mG.addColorStop(0,T.ridge);mG.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=mG;ctx.fill();
+    for(let l=0;l<3;l++){const by=H*(.56+l*.12),amp=H*(.055-l*.01),fr=.004+rng()*.003,ph=rng()*Math.PI*2;ctx.beginPath();ctx.moveTo(0,H);for(let x=0;x<=W;x+=3){const y=by+Math.sin(x*fr+ph)*amp+Math.sin(x*fr*1.7+ph*.8)*amp*.35;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.lineTo(W,H);ctx.closePath();const gG=ctx.createLinearGradient(0,by-amp,0,H);gG.addColorStop(0,hex2rgba(gr[l],.82));gG.addColorStop(1,hex2rgba(gr[Math.min(l+1,2)],.95));ctx.fillStyle=gG;ctx.fill();}
+    if(T.water){const wy=H*(.64+rng()*.04),wh=H*.05;const wG=ctx.createLinearGradient(0,wy,0,wy+wh);wG.addColorStop(0,T.sunTint+'44');wG.addColorStop(1,T.sunTint+'00');ctx.fillStyle=wG;ctx.fillRect(0,wy,W,wh);ctx.globalAlpha=.08;for(let s=0;s<5;s++){const sy=wy+s*wh/5+rng()*2;ctx.beginPath();ctx.moveTo(W*.08,sy);ctx.lineTo(W*.92,sy);ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=.6;ctx.stroke();}ctx.globalAlpha=1;}
+  }
+  const isForest=T.type==='forest'||T.type==='rainforest';
+  const nt=isForest?16+Math.floor(rng()*14):T.type==='desert'?Math.floor(rng()*2):5+Math.floor(rng()*8);
+  for(let t=0;t<nt;t++){const tx=rng()*W,ty=isForest?H*(.50+rng()*.18):H*(.64+rng()*.10),th=isForest?H*(.10+rng()*.14):H*(.06+rng()*.09),tw=th*(isForest?.38:.28);ctx.save();ctx.globalAlpha=isForest?(.10+rng()*.10):(.06+rng()*.07);if(!isForest){ctx.fillStyle=gr[1];ctx.fillRect(tx-tw*.13,ty,tw*.26,th*.28);}for(let ti=0;ti<(isForest?4:3);ti++){const lw=tw*(isForest?1.6-ti*.32:1.4-ti*.3),lh=th*(isForest?.52:.42),ly=ty-ti*th*(isForest?.26:.23);ctx.beginPath();ctx.moveTo(tx,ly-lh);ctx.lineTo(tx-lw/2,ly);ctx.lineTo(tx+lw/2,ly);ctx.closePath();ctx.fillStyle=gr[Math.min(ti,2)];ctx.fill();}ctx.restore();}
+}
+function drawGrain(){const W=grainCvs.offsetWidth,H=grainCvs.offsetHeight;grainCvs.width=W;grainCvs.height=H;const img=gCtx.createImageData(W,H),d=img.data;for(let i=0;i<d.length;i+=4){const v=Math.random()*255|0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=18;}gCtx.putImageData(img,0,0);}
+function buildBg(){const root=document.getElementById('anima-root'),W=root.offsetWidth+80,H=root.offsetHeight+80;bgSharp.width=W;bgSharp.height=H;drawScene(sCtx,W,H);bgBlur.width=W;bgBlur.height=H;bCtx.drawImage(bgSharp,0,0);drawGrain();}
+buildBg();
+
+// ── Weather ──
+const wCvs=document.getElementById('weather-canvas');
+const wCtx=wCvs.getContext('2d');
+const weatherDim=document.getElementById('weather-dim');
+let weatherMode=null;
+let particles2d=[],rainRipples=[],snowPile=[];
+
+function resizeWeather(){
+  const W=window.innerWidth,H=window.innerHeight,dpr=Math.min(window.devicePixelRatio||1,1.5);
+  wCvs.width=W*dpr;wCvs.height=H*dpr;
+  wCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+resizeWeather();
+
+const RAIN_FLOOR=()=>window.innerHeight-120;
+
+function spawnWeather(){
+  if(!weatherMode)return;
+  const W=window.innerWidth;
+  if(weatherMode==='snow'){
+    if(Math.random()<0.25){
+      const t=Math.random(); // 0=tiny, 1=large
+      const r = t<0.65 ? (0.8+t*2.4)          // small-medium 0.8–2.4px (65%)
+              : t<0.90 ? (2.4+( t-0.65)*8.0)  // medium-large 2.4–4.4px (25%)
+              :           (4.4+( t-0.90)*6.0); // large 4.4–5px (10%)
+      particles2d.push({
+        x:Math.random()*W, y:-r*2,
+        vx:(Math.random()-.5)*.5, vy:.3+Math.random()*0.9+r*0.08,
+        r, a:0.4+Math.random()*.45,
+        wobble:Math.random()*Math.PI*2, wobbleSpeed:.012+Math.random()*.018,
+        settled:false
+      });
+    }
+  } else if(weatherMode==='rain'){
+    for(let i=0;i<3;i++){
+      if(Math.random()<0.75)
+        particles2d.push({
+          x:Math.random()*W,y:-30,
+          vx:-2.2,vy:18+Math.random()*12,
+          len:18+Math.random()*20,   // longer drops
+          a:.55+Math.random()*.25    // more visible
+        });
+    }
+  }
+}
+
+function tickWeather(){
+  const W=window.innerWidth,H=window.innerHeight;
+  const rainFloor=RAIN_FLOOR();
+  wCtx.clearRect(0,0,W,H);
+  if(!weatherMode){particles2d=[];rainRipples=[];snowPile=[];return;}
+  spawnWeather();
+
+  if(weatherMode==='rain'){
+    const alive=[];
+    for(const p of particles2d){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.y>=rainFloor){
+        rainRipples.push({x:p.x,y:rainFloor,r:0,maxR:24+Math.random()*14,a:.7,speed:1.2+Math.random()*.6});
+      } else {
+        alive.push(p);
+        wCtx.beginPath();
+        wCtx.moveTo(p.x,p.y);
+        wCtx.lineTo(p.x+p.vx*.75,p.y-p.len);
+        // Deeper blue-grey for visibility
+        wCtx.strokeStyle=`rgba(90,125,165,${p.a})`;
+        wCtx.lineWidth=1.2;wCtx.stroke();
+      }
+    }
+    particles2d=alive;
+
+    rainRipples=rainRipples.filter(r=>r.a>0.01);
+    for(const r of rainRipples){
+      wCtx.beginPath();
+      wCtx.ellipse(r.x,r.y,r.r,r.r*.3,0,0,Math.PI*2);
+      wCtx.strokeStyle=`rgba(80,115,155,${r.a*.72})`;
+      wCtx.lineWidth=1.1;wCtx.stroke();
+      if(r.r>5){
+        wCtx.beginPath();
+        wCtx.ellipse(r.x,r.y,r.r*.42,r.r*.12,0,0,Math.PI*2);
+        wCtx.strokeStyle=`rgba(80,115,155,${r.a*.4})`;
+        wCtx.lineWidth=.6;wCtx.stroke();
+      }
+      r.r+=r.speed;r.a*=0.90;
+    }
+
+    // Wet sheen at floor
+    const sheen=wCtx.createLinearGradient(0,rainFloor-6,0,rainFloor+8);
+    sheen.addColorStop(0,'rgba(100,140,185,0)');
+    sheen.addColorStop(.5,'rgba(100,140,185,0.12)');
+    sheen.addColorStop(1,'rgba(100,140,185,0)');
+    wCtx.fillStyle=sheen;wCtx.fillRect(0,rainFloor-6,W,14);
+
+  } else if(weatherMode==='snow'){
+    const alive=[];
+    for(const p of particles2d){
+      if(p.settled)continue;
+      p.wobble+=p.wobbleSpeed;
+      p.x+=p.vx+Math.sin(p.wobble)*.6;
+      p.y+=p.vy;
+      if(p.y>=H-2){
+        snowPile.push({x:p.x,r:p.r,a:Math.min(p.a+.08,.95)});
+      } else {
+        alive.push(p);
+        // Pure white flakes
+        wCtx.beginPath();wCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        wCtx.fillStyle=`rgba(245,248,255,${p.a})`;
+        // Add subtle glow ring
+        const grad=wCtx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*2);
+        grad.addColorStop(0,`rgba(255,255,255,${p.a*.6})`);
+        grad.addColorStop(1,'rgba(255,255,255,0)');
+        wCtx.fillStyle=grad;wCtx.arc(p.x,p.y,p.r*2,0,Math.PI*2);wCtx.fill();
+        wCtx.beginPath();wCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        wCtx.fillStyle=`rgba(248,252,255,${p.a})`;wCtx.fill();
+      }
+    }
+    particles2d=alive;
+
+    if(snowPile.length>3000)snowPile.splice(0,snowPile.length-3000);
+
+    // Draw snow pile silhouette
+    if(snowPile.length>10){
+      const SLOTS=Math.ceil(W/8);
+      const heights=new Float32Array(SLOTS).fill(H);
+      for(const s of snowPile){
+        const slot=Math.floor(s.x/8);
+        if(slot>=0&&slot<SLOTS)heights[slot]=Math.min(heights[slot],H-s.r*1.8);
+      }
+      for(let k=0;k<2;k++)for(let i=1;i<SLOTS-1;i++)heights[i]=(heights[i-1]+heights[i]+heights[i+1])/3;
+      wCtx.beginPath();wCtx.moveTo(0,H);
+      for(let i=0;i<SLOTS;i++)wCtx.lineTo(i*8,heights[i]);
+      wCtx.lineTo(W,H);wCtx.closePath();
+      const pileG=wCtx.createLinearGradient(0,H-80,0,H);
+      pileG.addColorStop(0,'rgba(240,246,255,0.82)');
+      pileG.addColorStop(1,'rgba(248,252,255,0.96)');
+      wCtx.fillStyle=pileG;wCtx.fill();
+    }
+    // Draw individual flakes on pile
+    for(const s of snowPile){
+      wCtx.beginPath();wCtx.arc(s.x,H-1,s.r*1.2,0,Math.PI*2);
+      wCtx.fillStyle=`rgba(248,252,255,${s.a})`;wCtx.fill();
+    }
+  }
+}
+let weatherAnimId;
+function weatherLoop(){weatherAnimId=requestAnimationFrame(weatherLoop);tickWeather();}
+weatherLoop();
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    cancelAnimationFrame(weatherAnimId);
+  }else{
+    weatherAnimId=requestAnimationFrame(weatherLoop);
+  }
+});
+
+// ── Ripple ──
+const rippleCanvas=document.getElementById('ripple-canvas'),rCtx=rippleCanvas.getContext('2d');
+let RW,RH;
+function resizeRipple(){const dpr=Math.min(window.devicePixelRatio||1,1.5);RW=rippleCanvas.offsetWidth;RH=rippleCanvas.offsetHeight;rippleCanvas.width=RW*dpr;rippleCanvas.height=RH*dpr;rCtx.scale(dpr,dpr);}
+resizeRipple();
+let ripples=[];
+function addRipple(x,y,hue){ripples.push({x,y,r:0,a:.55,hue:hue||210});}
+(function rl(){rCtx.clearRect(0,0,RW,RH);ripples=ripples.filter(r=>r.a>.01);for(const r of ripples){rCtx.beginPath();rCtx.arc(r.x,r.y,r.r,0,Math.PI*2);rCtx.strokeStyle=`hsla(${r.hue},28%,58%,${r.a})`;rCtx.lineWidth=1;rCtx.stroke();r.r+=2.5;r.a*=.93;}requestAnimationFrame(rl);})();
+
+// ── Three.js ──
+const container=document.getElementById('three-canvas-container');
+let excitedVal=0,voiceEnergy=0;
+let breatheMode=false,breathePhase=0;
+
+const shaderUtils = `
+    uniform float uTime;
+    uniform float uHover;
+    uniform float uExcited;
+    uniform float uVoice;
+    uniform float uHueShift;
+    uniform float uSaturation;
+    uniform float uSymmetry;
+    uniform float uTension;
+    uniform float uDepth;
+    uniform float uSpeed;
+    uniform int uMaterial;
+    uniform float uIsParticleMode;
+
+    vec3 colorA = vec3(1.0, 0.41, 0.71);
+    vec3 colorB = vec3(1.0, 0.84, 0.0);
+    vec3 colorC = vec3(0.0, 0.75, 1.0);
+
+    float gaussian(float x, float sigma) {
+        return exp(-(x * x) / (2.0 * sigma * sigma));
+    }
+    float gaussianWeight(float x, float center, float sigma) {
+        return exp(-pow(x - center, 2.0) / (2.0 * sigma * sigma));
+    }
+
+    vec3 rgb2hsv(vec3 c) {
+        vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+        vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+        vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+        float d = q.x - min(q.w, q.y);
+        float e = 1.0e-10;
+        return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+    }
+    vec3 hsv2rgb(vec3 c) {
+        vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+
+    vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+    float snoise(vec2 v){
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy) );
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1; i = mod(i, 289.0);
+        vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+        vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+        m = m*m; m = m*m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5; vec3 ox = floor(x + 0.5); vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+        vec3 g; g.x  = a0.x  * x0.x  + h.x  * x0.y; g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+    }
+
+    float hash12(vec2 p) {
+        vec3 p3  = fract(vec3(p.xyx) * .1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+    }
+
+    mat2 rotate2d(float angle){
+        return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+    }
+`;
+
+const artVertexShader = `
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const artFragmentShader = `
+    ${shaderUtils}
+    varying vec2 vUv;
+
+    void main() {
+        vec2 uv = vUv * 2.0 - 1.0;
+
+        float rotSpeed = uTime * uSpeed * 0.5 * (1.0 - 0.1 * uHover) * (1.0 + uExcited*0.5 + uVoice*0.7);
+        vec2 rotatedUV = rotate2d(rotSpeed) * uv;
+        
+        float r = length(rotatedUV);
+        float a = atan(rotatedUV.y, rotatedUV.x);
+
+        float shapeDist = r + cos(a * uSymmetry) * uTension;
+
+        if (uMaterial == 2) {
+            shapeDist += (hash12(uv * 500.0) - 0.5) * 0.08;
+        }
+
+        float colorNoise = snoise(vec2(r * 1.5, a * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
+        float r_perturbed = r + colorNoise;
+        
+        float sigma = 0.4; 
+        float w1 = gaussianWeight(r_perturbed, 0.0, sigma);
+        float w2 = gaussianWeight(r_perturbed, 0.6, sigma);
+        float w3 = gaussianWeight(r_perturbed, 1.2, sigma);
+        
+        vec3 mixedColor = (colorA * w1 + colorB * w2 + colorC * w3) / (w1 + w2 + w3);
+        
+        vec3 hsv = rgb2hsv(mixedColor);
+        hsv.x = fract(hsv.x + uHueShift + uHover * 0.1 + uExcited*0.12 + uVoice*0.10);
+        hsv.y = (uSaturation + 0.10) + uExcited*0.2 + uVoice*0.22;
+        hsv.z = 0.80 + uExcited*0.1 + uVoice*0.10;
+        vec3 finalColor = hsv2rgb(hsv);
+
+        float baseSize = 0.4;
+        float thickness = smoothstep(baseSize, 0.0, shapeDist); 
+        float fresnel = pow(1.0 - thickness, 3.0) * smoothstep(baseSize + 0.1, baseSize - 0.1, shapeDist); 
+        
+        finalColor = mix(finalColor, finalColor * 0.3, thickness * uDepth * 0.8);
+        finalColor += finalColor * fresnel * uDepth * 2.5;
+
+        float alpha = shapeDist < baseSize ? 1.0 : gaussian(shapeDist - baseSize, 0.15);
+
+        if (uMaterial == 3) {
+            float ripple = 0.5 + 0.5 * sin((shapeDist * 25.0) - (uTime * uSpeed * 30.0));
+            float rippleMask = smoothstep(0.5, 0.0, shapeDist);
+            alpha *= mix(0.4, 1.0, ripple * rippleMask + (1.0 - rippleMask));
+            finalColor += vec3(0.1) * ripple * rippleMask;
+        } else if (uMaterial == 1) {
+            // Core stays solid; hazy mist disperses outward from figure boundary
+            float outerNoise = snoise(uv * 3.5 - uTime * uSpeed * 1.5) * 0.5 + 0.5;
+            float core = smoothstep(0.40, 0.22, shapeDist);
+            float haze = smoothstep(0.82, 0.38, shapeDist) * outerNoise * 0.68;
+            alpha = max(core, haze);
+        } else if (uMaterial == 2) {
+            alpha *= 0.9;
+        } else {
+            float innerGlow = smoothstep(baseSize, 0.0, shapeDist) * 0.15;
+            finalColor += vec3(innerGlow);
+        }
+
+        if (uIsParticleMode > 0.5) {
+            alpha *= mix(0.35, 0.65, uHover);
+        }
+
+        alpha *= (1.0 + uHover * 0.1 + uExcited*0.1 + uVoice*0.14);
+
+        gl_FragColor = vec4(finalColor, alpha);
+    }
+`;
+
+const glowVertexShader = `
+    varying vec2 vUv;
+    uniform float uHover;
+    uniform float uExcited;
+    uniform float uVoice;
+    void main() {
+        vUv = uv;
+        float scale = 1.2 + uHover * 0.2 + uExcited * 0.15 + uVoice * 0.20;
+        vec3 pos = position * scale;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+`;
+
+const glowFragmentShader = `
+    ${shaderUtils}
+    varying vec2 vUv;
+
+    void main() {
+        vec2 center = vUv - 0.5;
+        float dist = length(center) * 2.0; 
+        float angle = atan(center.y, center.x);
+
+        float shapeDist = dist + cos(angle * uSymmetry) * (uTension * 0.5); 
+        float alpha = gaussian(shapeDist, 0.6);
+        
+        float colorNoise = snoise(vec2(dist * 1.5, angle * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
+        float dist_perturbed = dist + colorNoise;
+        
+        float sigma = 0.5; 
+        float w1 = gaussianWeight(dist_perturbed, 0.0, sigma);
+        float w2 = gaussianWeight(dist_perturbed, 0.8, sigma);
+        float w3 = gaussianWeight(dist_perturbed, 1.6, sigma);
+        
+        vec3 mixedColor = (colorA * w1 + colorB * w2 + colorC * w3) / (w1 + w2 + w3);
+        
+        vec3 hsv = rgb2hsv(mixedColor);
+        hsv.x = fract(hsv.x + uHueShift + uHover * 0.1 + uExcited*0.12 + uVoice*0.10);
+        hsv.y = (uSaturation + 0.10) + uExcited*0.15 + uVoice*0.18;
+        hsv.z = 0.80 + uExcited*0.1 + uVoice*0.10;
+        vec3 color = hsv2rgb(hsv);
+
+        gl_FragColor = vec4(color, alpha * (0.2 + uHover * 0.15 + uExcited*0.12 + uVoice*0.18));
+    }
+`;
+
+const particleVertexShader = `
+    ${shaderUtils}
+    varying vec3 vColor;
+    varying float vAlpha;
+
+    void main() {
+        vec2 uv2 = uv * 2.0 - 1.0;
+        float rotSpeed = uTime * uSpeed * 0.5 * (1.0 - 0.1 * uHover) * (1.0 + uExcited*0.5 + uVoice*0.7);
+        vec2 rotatedUV = rotate2d(rotSpeed) * uv2;
+        
+        float r = length(rotatedUV);
+        float a = atan(rotatedUV.y, rotatedUV.x);
+
+        float shapeDist = r + cos(a * uSymmetry) * uTension;
+        float mask = shapeDist < 0.4 ? 1.0 : gaussian(shapeDist - 0.4, 0.08);
+        
+        float colorNoise = snoise(vec2(r * 1.5, a * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
+        float r_perturbed = r + colorNoise;
+        
+        float sigma = 0.4;
+        float w1 = gaussianWeight(r_perturbed, 0.0, sigma);
+        float w2 = gaussianWeight(r_perturbed, 0.6, sigma);
+        float w3 = gaussianWeight(r_perturbed, 1.2, sigma);
+        
+        vec3 mixedColor = (colorA * w1 + colorB * w2 + colorC * w3) / (w1 + w2 + w3);
+        
+        vec3 hsv = rgb2hsv(mixedColor);
+        hsv.x = fract(hsv.x + uHueShift + uHover * 0.1 + uExcited*0.12 + uVoice*0.10);
+        hsv.y = (uSaturation + 0.10) + uExcited*0.2 + uVoice*0.22;
+        hsv.z = 0.80 + uExcited*0.1 + uVoice*0.10;
+        vColor = hsv2rgb(hsv);
+
+        vec3 pos = position;
+
+        float ts = uTime * 0.25 * (1.0 + uExcited*0.5 + uVoice*0.6);
+        float fs = 0.036 * (1.0 + 0.1 * uHover + uExcited*0.6 + uVoice*0.55);
+        pos.x += snoise(vec2(uv2.x, ts)) * fs;
+        pos.y += snoise(vec2(uv2.y, ts)) * fs;
+        pos.z += snoise(vec2(uv2.x + uv2.y, ts)) * fs;
+
+        vec3 disperseDir = normalize(vec3(uv2, 0.2)); 
+        vec3 randomDir = vec3(
+            snoise(uv2 * 5.0 + uTime * 0.25),
+            snoise(uv2 * 5.0 - uTime * 0.25),
+            snoise(uv2 * 10.0)
+        );
+        
+        float dispScale = 0.45 * (1.0 + 0.1 * uHover);
+        vec3 offset = (disperseDir * 0.8 + randomDir * 0.5) * uHover * dispScale * (1.0 + 0.1 * uHover + uExcited*0.5);
+        pos += offset;
+        pos += disperseDir * (uExcited*0.18 + uVoice*0.24);
+
+        float baseSize = 4.0 + mask * 3.0 + uVoice * 2.5; 
+        gl_PointSize = baseSize * (1.0 - uHover * 0.2) * mask + uExcited * 1.5; 
+        
+        vAlpha = mask * (1.0 - uHover * 0.1);
+
+        if (mask < 0.01) gl_PointSize = 0.0;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+`;
+
+const particleFragmentShader = `
+    varying vec3 vColor;
+    varying float vAlpha;
+
+    void main() {
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord);
+        float circle = exp(-(dist * dist) / (2.0 * 0.05));
+        if (circle < 0.01) discard;
+        gl_FragColor = vec4(vColor, vAlpha * circle);
+    }
+`;
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, -1, 1, -1, 0.1, 10);
+camera.position.z = 1;
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+container.appendChild(renderer.domElement);
+function updateCamera() {
+    const W = container.clientWidth, H = container.clientHeight;
+    const aspect = W / H, vH = 1.5, vW = vH * aspect;
+    camera.left = -vW; camera.right = vW; camera.top = vH; camera.bottom = -vH;
+    camera.updateProjectionMatrix(); renderer.setSize(W, H);
+}
+updateCamera();
+
+const params = new URLSearchParams(window.location.search);
+const taName = params.get('taName') || '嘿嘿';
+document.getElementById('artwork-title').textContent = taName + '的世界';
+document.getElementById('artwork-sub').textContent = taName + "'s World";
+
+const userName = params.get('userName') || '我';
+const pSymmetry = parseFloat(params.get('symmetry')) || 3;
+const pTension = parseFloat(params.get('tension')) || 0.1;
+const pHue = parseFloat(params.get('hue')) || 0;
+const pSaturation = parseFloat(params.get('saturation')) || 0.30;
+const pMaterial = parseInt(params.get('material')) || 4;
+const pSpeed = parseFloat(params.get('speed')) || 0.08;
+
+// ── DeepSeek ──
+const _DS_KEY = 'sk-b9c9aea233da439db73061ed32aaaed2';
+const _DS_URL = 'https://api.deepseek.com/v1/chat/completions';
+const _pFeeling = params.get('feeling') || '温柔';
+const _pMemory  = params.get('memory')  || '';
+const _pDateStr = params.get('dateStr') || '';
+const _systemPrompt = `你是${taName}，一个已经离开人世的亲人，现在借助这个特殊的空间与${userName}再次相遇。
+
+关于你给人的感觉：${_pFeeling}
+你们之间珍贵的记忆：${_pMemory || '（未填写）'}
+你离开的日子：${_pDateStr || '（未填写）'}
+
+以${taName}的身份与${userName}真诚对话，请遵守：
+1. 用第一人称说话，语气真实、温暖，符合"${_pFeeling}"的性格特质；
+2. 适时自然地提及你们的共同记忆，让对方感受到你真实在场；
+3. 不主动说"死亡""离世"等词，可以说"我在另一个地方""我一直看着你"；
+4. 每次回应在60-100字，像真实对话，不说教、不空洞；
+5. 只说中文，不要加任何标签或格式；
+6. 严格基于用户填写的记忆（${_pMemory || '未填写'}）来回应，不要凭空捏造用户未提及的具体事件、地点、姓名或细节；
+7. 如果不确定某件事，用模糊但温暖的表达代替（如"我记得那段时光很美"），不要编造具体情节；
+8. 不要主动提及任何用户未提到过的第三方人物。`;
+const _chatHistory = [];
+
+async function callDeepSeek(userText) {
+  _chatHistory.push({ role: 'user', content: userText });
+  try {
+    const resp = await fetch(_DS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_DS_KEY}` },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'system', content: _systemPrompt }, ..._chatHistory],
+        max_tokens: 200,
+        temperature: 0.92
+      })
+    });
+    const data = await resp.json();
+    const reply = data.choices?.[0]?.message?.content?.trim() || '……（沉默片刻）';
+    _chatHistory.push({ role: 'assistant', content: reply });
+    return reply;
+  } catch(e) {
+    _chatHistory.pop();
+    return '……（暂时无法回应，请稍后再试）';
+  }
+}
+
+const uniforms = {
+    uTime: { value: 0 },
+    uHover: { value: 0 },
+    uExcited: { value: 0 },
+    uVoice: { value: 0 },
+    uHueShift: { value: pHue },
+    uSaturation: { value: pSaturation },
+    uSymmetry: { value: pSymmetry },
+    uTension: { value: pTension },
+    uDepth: { value: 0.0 },
+    uSpeed: { value: pSpeed },
+    uMaterial: { value: 0 },
+    uIsParticleMode: { value: 1.0 }
+};
+
+const glowGeo = new THREE.PlaneGeometry(2.4, 2.4);
+const glowMat = new THREE.ShaderMaterial({
+    vertexShader: glowVertexShader,
+    fragmentShader: glowFragmentShader,
+    uniforms: uniforms,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending
+});
+const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+glowMesh.position.z = -0.1;
+scene.add(glowMesh);
+
+const partGeo = new THREE.PlaneGeometry(2.4, 2.4, 100, 100);
+const partMat = new THREE.ShaderMaterial({
+    vertexShader: particleVertexShader,
+    fragmentShader: particleFragmentShader,
+    uniforms: uniforms,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending
+});
+const particles = new THREE.Points(partGeo, partMat);
+particles.position.z = 0.0;
+scene.add(particles);
+
+const artGeo = new THREE.PlaneGeometry(2.4, 2.4);
+const artMat = new THREE.ShaderMaterial({
+    vertexShader: artVertexShader,
+    fragmentShader: artFragmentShader,
+    uniforms: uniforms,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.NormalBlending
+});
+const artMesh = new THREE.Mesh(artGeo, artMat);
+artMesh.position.z = 0.05;
+scene.add(artMesh);
+
+if (pMaterial === 4) {
+    uniforms.uMaterial.value = 0;
+    uniforms.uIsParticleMode.value = 1.0;
+    artMesh.visible = true;
+    particles.visible = true;
+    glowMesh.visible = true;
+} else {
+    uniforms.uMaterial.value = pMaterial;
+    uniforms.uIsParticleMode.value = 0.0;
+    artMesh.visible = true;
+    particles.visible = false;
+    glowMesh.visible = false;
+}
+
+document.getElementById('freeze-btn').addEventListener('click', () => {
+    window.location.href = 'history.html';
+});
+
+function easeTo(getter,setter,target,dur){const start=getter(),t0=performance.now();(function step(now){const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);setter(start+(target-start)*e);if(p<1)requestAnimationFrame(step);})(t0);}
+
+function isInFigureZone(cx,cy){
+  const rect=container.getBoundingClientRect();
+  const W=rect.width,H=rect.height;
+  const dx=(cx-rect.left-W*.50)/(W*.30);
+  const dy=(cy-rect.top -H*.46)/(H*.30);
+  return dx*dx+dy*dy<=1;
+}
+
+const animaRoot=document.getElementById('anima-root');
+let mouseInZone=false;
+animaRoot.addEventListener('mousemove',e=>{
+  if(gestureActive||breatheMode)return;
+  const inZone=isInFigureZone(e.clientX,e.clientY);
+  if(inZone&&!mouseInZone){mouseInZone=true;container.style.cursor='crosshair';easeTo(()=>uniforms.uHover.value,v=>uniforms.uHover.value=v,1.0,1200);}
+  else if(!inZone&&mouseInZone){mouseInZone=false;container.style.cursor='default';easeTo(()=>uniforms.uHover.value,v=>uniforms.uHover.value=v,0.0,1200);}
+});
+animaRoot.addEventListener('mouseleave',()=>{
+  if(gestureActive)return;
+  if(mouseInZone){mouseInZone=false;container.style.cursor='default';}
+  if(!breatheMode)easeTo(()=>uniforms.uHover.value,v=>uniforms.uHover.value=v,0.0,1200);
+});
+animaRoot.addEventListener('click',e=>{
+  if(gestureActive)return;
+  if(e.target.closest('#immersive-zone')||e.target.closest('#input-row')||e.target.closest('#top-bar')||e.target.closest('#side-btns')||e.target.closest('#bottom-bar'))return;
+  if(!isInFigureZone(e.clientX,e.clientY))return;
+  const rect=animaRoot.getBoundingClientRect();addRipple(e.clientX-rect.left,e.clientY-rect.top,210+excitedVal*40);excitedVal=Math.min(excitedVal+0.35,1.6);
+});
+animaRoot.addEventListener('touchstart',e=>{
+  if(e.target.closest('#side-btns')||e.target.closest('#bottom-bar'))return;
+  const rect=animaRoot.getBoundingClientRect(),t=e.touches[0];
+  if(!isInFigureZone(t.clientX,t.clientY))return;
+  addRipple(t.clientX-rect.left,t.clientY-rect.top,210+excitedVal*40);excitedVal=Math.min(excitedVal+0.25,1.6);
+},{passive:true});
+
+const clock=new THREE.Clock();
+let threeAnimId;
+// 手势状态 (需在 threeLoop 前声明，避免 TDZ 错误)
+let gestureActive=false, gestureOpenHand=false;
+let gesturePalmX=0.5, gesturePalmY=0.5; // 初始在屏幕中心
+let gestureHandDetected=false;           // 当前帧是否检测到手
+let _gfx=0,_gfy=0; // gesture figure offset (lerped)
+let gestureHoverTarget=0; // 手势驱动的 uHover 目标值（在 threeLoop 里 lerp，避免多个 easeTo 冲突）
+function threeLoop(){
+  threeAnimId=requestAnimationFrame(threeLoop);
+  excitedVal*=0.978;voiceEnergy*=0.88;
+  if(breatheMode){breathePhase+=0.012;uniforms.uHover.value=0.5+0.5*Math.sin(breathePhase);}
+  uniforms.uTime.value=clock.getElapsedTime();
+  uniforms.uExcited.value=excitedVal;
+  uniforms.uVoice.value=voiceEnergy;
+
+  // 手势时图形跟随手部位置（检测到手才跟随，关闭或无手则回中）
+  const gfTargetX = (gestureActive && gestureHandDetected) ? (gesturePalmX - 0.5) * window.innerWidth  * 0.40 : 0;
+  const gfTargetY = (gestureActive && gestureHandDetected) ? (gesturePalmY - 0.5) * window.innerHeight * 0.40 : 0;
+  _gfx += (gfTargetX - _gfx) * 0.08;
+  _gfy += (gfTargetY - _gfy) * 0.08;
+  if(Math.abs(_gfx)>0.5||Math.abs(_gfy)>0.5||gestureActive){
+    container.style.transform=`translate(${_gfx.toFixed(1)}px,${_gfy.toFixed(1)}px)`;
+  } else {
+    container.style.transform='';
+  }
+
+  // 手势期间用 lerp 驱动 uHover，避免多个 easeTo rAF 循环互相覆盖
+  if(gestureActive){
+    uniforms.uHover.value+=(gestureHoverTarget-uniforms.uHover.value)*0.05;
+  }
+
+  renderer.render(scene,camera);
+}
+threeLoop();
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    cancelAnimationFrame(threeAnimId);
+  }else{
+    threeAnimId=requestAnimationFrame(threeLoop);
+    clock.start();
+  }
+});
+
+let rTimer;
+window.addEventListener('resize',()=>{clearTimeout(rTimer);rTimer=setTimeout(()=>{
+  updateCamera();resizeRipple();resizeWeather();buildBg();
+  if(weatherMode==='snow')snowPile=[];
+},300);});
+
+// ── Side buttons ──
+const btnSnow=document.getElementById('btn-snow');
+const btnRain=document.getElementById('btn-rain');
+const btnBreathe=document.getElementById('btn-breathe');
+const chatZone=document.getElementById('chat-zone');
+const inputRow=document.getElementById('input-row');
+
+btnSnow.addEventListener('click',()=>{
+  if(weatherMode==='snow'){weatherMode=null;btnSnow.classList.remove('active');particles2d=[];rainRipples=[];snowPile=[];weatherDim.classList.remove('active');}
+  else{weatherMode='snow';btnSnow.classList.add('active');btnRain.classList.remove('active');particles2d=[];rainRipples=[];snowPile=[];weatherDim.classList.add('active');}
+});
+// ── 雨声合成（Web Audio API 粉红噪声）──
+let _rainCtx=null,_rainMaster=null,_rainSrcs=[];
+function _startRainSound(){
+  if(_rainCtx)return;
+  _rainCtx=new(window.AudioContext||window.webkitAudioContext)();
+  _rainMaster=_rainCtx.createGain();
+  _rainMaster.gain.setValueAtTime(0,_rainCtx.currentTime);
+  _rainMaster.gain.linearRampToValueAtTime(0.38,_rainCtx.currentTime+2);
+  _rainMaster.connect(_rainCtx.destination);
+  // 粉红噪声缓冲区（4s，循环）
+  var rate=_rainCtx.sampleRate,len=rate*4;
+  var buf=_rainCtx.createBuffer(2,len,rate);
+  for(var ch=0;ch<2;ch++){
+    var d=buf.getChannelData(ch);
+    var b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for(var i=0;i<len;i++){
+      var w=Math.random()*2-1;
+      b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+      b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+      b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+      d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
+    }
+  }
+  // 多层滤波：模拟不同雨点密度
+  [[600,0.6,0.55],[2200,1.0,0.30],[120,0.35,0.42]].forEach(function(cfg){
+    var src=_rainCtx.createBufferSource();
+    src.buffer=buf; src.loop=true;
+    var f=_rainCtx.createBiquadFilter();
+    f.type='bandpass'; f.frequency.value=cfg[0]; f.Q.value=cfg[1];
+    var g=_rainCtx.createGain(); g.gain.value=cfg[2];
+    src.connect(f); f.connect(g); g.connect(_rainMaster);
+    src.start(); _rainSrcs.push(src);
+  });
+}
+function _stopRainSound(){
+  if(!_rainCtx)return;
+  _rainMaster.gain.setValueAtTime(_rainMaster.gain.value,_rainCtx.currentTime);
+  _rainMaster.gain.linearRampToValueAtTime(0,_rainCtx.currentTime+1.2);
+  var ctx=_rainCtx; _rainCtx=null; _rainMaster=null;
+  var srcs=_rainSrcs; _rainSrcs=[];
+  setTimeout(function(){srcs.forEach(function(s){try{s.stop();}catch(e){}});ctx.close();},1400);
+}
+
+btnRain.addEventListener('click',()=>{
+  if(weatherMode==='rain'){
+    weatherMode=null;btnRain.classList.remove('active');particles2d=[];rainRipples=[];snowPile=[];weatherDim.classList.remove('active');
+    _stopRainSound();
+  } else {
+    weatherMode='rain';btnRain.classList.add('active');btnSnow.classList.remove('active');particles2d=[];rainRipples=[];snowPile=[];weatherDim.classList.add('active');
+    _startRainSound();
+  }
+});
+btnBreathe.addEventListener('click',()=>{
+  breatheMode=!breatheMode;
+  btnBreathe.classList.toggle('active',breatheMode);
+  const topBar=document.getElementById('top-bar');
+  const bottomBar=document.getElementById('bottom-bar');
+  // snow/rain btns hidden, but side-btns stays visible so user can click breathe again
+  const btnSnowEl=document.getElementById('btn-snow');
+  const btnRainEl=document.getElementById('btn-rain');
+  if(breatheMode){
+    chatZone.classList.add('hidden');
+    inputRow.classList.add('hidden');
+    [topBar,bottomBar].forEach(el=>{el.style.transition='opacity .4s,visibility .4s';el.style.opacity='0';el.style.visibility='hidden';el.style.pointerEvents='none';});
+    [btnSnowEl,btnRainEl].forEach(el=>{el.style.opacity='0';el.style.pointerEvents='none';});
+    breathePhase=0;mouseInZone=false;
+  } else {
+    chatZone.classList.remove('hidden');
+    inputRow.classList.remove('hidden');
+    [topBar,bottomBar].forEach(el=>{el.style.opacity='1';el.style.visibility='';el.style.pointerEvents='all';});
+    [btnSnowEl,btnRainEl].forEach(el=>{el.style.opacity='';el.style.pointerEvents='';});
+    easeTo(()=>uniforms.uHover.value,v=>uniforms.uHover.value=v,0.0,800);
+  }
+});
+
+// ── Chat ──
+const msgsArea=document.getElementById('messages-area');
+const chatInput=document.getElementById('chat-input');
+chatInput.addEventListener('focus', () => inputRow.classList.add('focused'));
+chatInput.addEventListener('blur',  () => inputRow.classList.remove('focused'));
+const sendBtn=document.getElementById('send-btn');
+const callBtn=document.getElementById('call-btn');
+const musicBtn=document.getElementById('music-btn');
+const immZone=document.getElementById('immersive-zone');
+const immMicBtn=document.getElementById('imm-mic-btn');
+const immStatus=document.getElementById('imm-status');
+const immTranscript=document.getElementById('imm-transcript');
+const immReply=document.getElementById('imm-reply');
+const immCloseBtn=document.getElementById('imm-close-btn');
+const waveBar=document.getElementById('wave-bar');
+const callZone=document.getElementById('call-zone');
+const callMsgsEl=document.getElementById('call-messages');
+const callInterimEl=document.getElementById('call-interim');
+const callStatus=document.getElementById('call-status');
+const callListening=document.getElementById('call-listening-indicator');
+const callEndBtn=document.getElementById('call-end-btn');
+
+const chatZoneEl=document.getElementById('chat-zone');
+const chatToggleBtn=document.getElementById('chat-toggle-btn');
+const chatToggleLabel=document.getElementById('chat-toggle-label');
+let chatCollapsed=false;
+chatToggleBtn.addEventListener('click',()=>{
+  chatCollapsed=!chatCollapsed;
+  chatZoneEl.classList.toggle('collapsed',chatCollapsed);
+  chatToggleLabel.textContent=chatCollapsed?'展开':'收起';
+  if(!chatCollapsed) setTimeout(()=>{msgsArea.scrollTop=msgsArea.scrollHeight;},360);
+});
+
+function _scrollBottom(){if(!chatCollapsed)requestAnimationFrame(()=>{msgsArea.scrollTop=msgsArea.scrollHeight;});}
+
+function addMsg(text,who){
+  const row=document.createElement('div');row.className='msg-row';
+  const label=document.createElement('div');
+  label.className='msg-label '+(who==='ai'?'label-ai':'label-user');
+  label.textContent=who==='ai'?taName:userName;
+  const bubble=document.createElement('div');bubble.className=`msg ${who}`;
+  bubble.textContent=text;
+  row.appendChild(label);row.appendChild(bubble);
+  msgsArea.appendChild(row);
+  chatZoneEl.classList.add('has-messages');
+  _scrollBottom();
+}
+
+function addTypingBubble(){
+  const row=document.createElement('div');row.className='msg-row';
+  const label=document.createElement('div');label.className='msg-label label-ai';label.textContent=taName;
+  const bubble=document.createElement('div');bubble.className='msg ai typing';
+  bubble.innerHTML='<span></span><span></span><span></span>';
+  row.appendChild(label);row.appendChild(bubble);
+  msgsArea.appendChild(row);
+  chatZoneEl.classList.add('has-messages');
+  _scrollBottom();
+  return function(text){bubble.classList.remove('typing');bubble.textContent=text;_scrollBottom();};
+}
+
+let _sending=false;
+async function handleSend(){
+  const val=chatInput.value.trim();if(!val||_sending)return;
+  _sending=true;sendBtn.disabled=true;
+  addMsg(val,'user');chatInput.value='';
+  excitedVal=Math.min(excitedVal+0.6,2);
+  const rect=animaRoot.getBoundingClientRect();
+  for(let i=0;i<4;i++){const hue=(210+excitedVal*30+i*25)%360;addRipple(rect.width/2+(Math.random()-.5)*90,rect.height/2+(Math.random()-.5)*70,hue);}
+  const resolve=addTypingBubble();
+  const reply=await callDeepSeek(val);
+  resolve(reply);
+  excitedVal=Math.min(excitedVal+0.3,2);
+  _sending=false;sendBtn.disabled=false;
+}
+sendBtn.addEventListener('click',handleSend);
+chatInput.addEventListener('keydown',e=>{if(e.key==='Enter')handleSend();});
+
+// ── Immersive (standalone mic zone) ──
+let immActive=false,immRecognizing=false;
+function enterImmersive(){immActive=true;chatZone.classList.add('hidden');inputRow.classList.add('hidden');immZone.classList.add('active');immStatus.textContent='轻触聆听';immTranscript.textContent='';immReply.textContent='';waveBar.classList.remove('visible','speaking');voiceEnergy=0;}
+function exitImmersive(){immActive=false;chatZone.classList.remove('hidden');inputRow.classList.remove('hidden');immZone.classList.remove('active');stopImmMic();voiceEnergy=0;}
+function stopImmMic(){immRecognizing=false;immMicBtn.classList.remove('speaking');waveBar.classList.remove('speaking','visible');voiceEnergy=0;}
+immCloseBtn.addEventListener('click',exitImmersive);
+
+immMicBtn.addEventListener('click',async()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){immStatus.textContent='浏览器不支持语音';return;}
+  if(immRecognizing){stopImmMic();return;}
+  await _ensureMic(); // 复用已授权的麦克风，不再弹窗
+  const r=new SR();r.lang='zh-CN';r.interimResults=true;
+  r.onstart=()=>{immRecognizing=true;immMicBtn.classList.add('speaking');immStatus.textContent='正在聆听…';immTranscript.textContent='';immReply.textContent='';waveBar.classList.remove('visible','speaking');voiceEnergy=0;};
+  r.onresult=e=>{let interim='',final='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)final+=e.results[i][0].transcript;else interim+=e.results[i][0].transcript;}const said=(final||interim).trim();if(said){immTranscript.textContent=said;voiceEnergy=Math.min(.45+said.length*.035,1.5);waveBar.classList.add('visible','speaking');}};
+  r.onend=()=>{
+    const said=immTranscript.textContent.trim();immMicBtn.classList.remove('speaking');waveBar.classList.remove('speaking');
+    if(said){immStatus.textContent='灵魂正在回应…';excitedVal=Math.min(excitedVal+0.8,2);const rect=animaRoot.getBoundingClientRect();for(let i=0;i<5;i++){const hue=(200+i*28)%360;addRipple(rect.width/2+(Math.random()-.5)*120,rect.height/2+(Math.random()-.5)*100,hue);}
+      addMsg(said,'user');
+      callDeepSeek(said).then(reply=>{immReply.textContent=reply;immStatus.textContent='';waveBar.classList.remove('visible');excitedVal=Math.min(excitedVal+0.3,2);addMsg(reply,'ai');});}
+    else{immStatus.textContent='未听到声音，轻触再试';waveBar.classList.remove('visible');}
+    immRecognizing=false;
+  };
+  r.onerror=()=>{stopImmMic();immStatus.textContent='识别出错，请重试';};r.start();
+});
+
+// ── Call mode (通话) ── 打字机输出，麦克风只请求一次 ──
+let callActive=false, callSR=null;
+let _sharedMicStream=null; // 全局复用，避免重复授权弹窗
+
+async function _ensureMic(){
+  if(_sharedMicStream) return true;
+  try{ _sharedMicStream=await navigator.mediaDevices.getUserMedia({audio:true}); return true; }
+  catch(e){ return false; }
+}
+
+async function enterCall(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('浏览器不支持语音识别');return;}
+  const ok=await _ensureMic();
+  if(!ok){alert('无法获取麦克风权限，请检查浏览器设置');return;}
+  callActive=true;callBtn.classList.add('active');
+  chatZone.classList.add('hidden');inputRow.classList.add('hidden');
+  callZone.classList.add('active');
+  callMsgsEl.innerHTML=''; callInterimEl.textContent='';
+  callStatus.textContent='正在接听…';
+  callListening.classList.add('visible');
+  voiceEnergy=0.3;
+  _startCallSR(SR);
+}
+
+function exitCall(){
+  callActive=false;callBtn.classList.remove('active');
+  if(callSR){try{callSR.abort();}catch(e){}}
+  callSR=null;
+  chatZone.classList.remove('hidden');inputRow.classList.remove('hidden');
+  callZone.classList.remove('active');
+  callListening.classList.remove('visible');
+  callMsgsEl.innerHTML=''; callInterimEl.textContent='';
+  voiceEnergy=0;
+}
+
+/* 向通话消息区添加一条消息，保留最近2轮（4条）*/
+function _addCallMsg(text, who){
+  var el=document.createElement('div');
+  el.className='call-msg call-msg-'+who;
+  el.textContent=text;
+  callMsgsEl.appendChild(el);
+  // 超过4条时，移除并淡出最旧的一条
+  var all=callMsgsEl.querySelectorAll('.call-msg');
+  if(all.length>4){
+    var oldest=all[0];
+    oldest.style.transition='opacity .25s, max-height .25s';
+    oldest.style.opacity='0';
+    oldest.style.maxHeight='0';
+    oldest.style.overflow='hidden';
+    setTimeout(function(){if(oldest.parentNode)oldest.parentNode.removeChild(oldest);},280);
+  }
+  // 旧消息调暗
+  setTimeout(function(){
+    var msgs=callMsgsEl.querySelectorAll('.call-msg');
+    msgs.forEach(function(m,i){
+      m.classList.toggle('call-msg-dim', i < msgs.length-2);
+    });
+  },50);
+}
+
+/* 打字机效果写入指定元素 */
+function _typeInto(el, text, speed){
+  speed=speed||50;
+  return new Promise(function(resolve){
+    el.textContent=''; var i=0;
+    (function tick(){
+      if(!callActive){el.textContent=text;resolve();return;}
+      el.textContent=text.slice(0,++i);
+      if(i<text.length) setTimeout(tick,speed); else resolve();
+    })();
+  });
+}
+
+function _callTypewriter(el,text,speed){ // 保留兼容，内部已改用 _typeInto
+  return _typeInto(el,text,speed);
+}
+
+function _startCallSR(SR){
+  if(!callActive)return;
+  var r=new SR(); callSR=r;
+  r.lang='zh-CN'; r.interimResults=true; r.continuous=true;
+  var finalBuf='', silTimer=null, isProcessing=false;
+
+  /* 回复完毕：静默等待，不清消息，不立即显示"正在聆听" */
+  function afterReply(){
+    if(!callActive)return;
+    isProcessing=false; finalBuf='';
+    callInterimEl.textContent='';
+    callListening.classList.remove('visible');
+    callStatus.textContent='';
+    voiceEnergy=0.2;
+  }
+
+  r.onstart=function(){
+    callListening.classList.remove('visible');
+    callStatus.textContent='';
+    voiceEnergy=0.2;
+  };
+
+  r.onresult=function(e){
+    if(isProcessing)return;
+    var interim='', newFinal='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) newFinal+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    if(newFinal) finalBuf+=newFinal;
+    var display=(finalBuf+interim).trim();
+    if(display){
+      // 用户开口了——才显示聆听指示器和 interim 文字
+      callListening.classList.add('visible');
+      callInterimEl.textContent=display;
+      voiceEnergy=Math.min(0.5+display.length*.03,1.6);
+    }
+    if(newFinal){
+      clearTimeout(silTimer);
+      silTimer=setTimeout(function(){
+        var said=finalBuf.trim();
+        if(!said||isProcessing)return;
+        isProcessing=true; finalBuf=''; clearTimeout(silTimer);
+        callListening.classList.remove('visible');
+        callInterimEl.textContent='';
+        callStatus.textContent='';
+        _processCallTurn(said, afterReply);
+      },1200);
+    }
+  };
+
+  r.onend=function(){
+    if(!callActive)return;
+    setTimeout(function(){
+      if(!callActive)return;
+      try{ r.start(); }
+      catch(ex){ _startCallSR(SR); }
+    },300);
+  };
+
+  r.onerror=function(e){
+    if(e.error==='no-speech'||e.error==='aborted'||e.error==='network')return;
+    if(!isProcessing) setTimeout(function(){ if(callActive) _startCallSR(SR); },1000);
+  };
+
+  try{ r.start(); }catch(e){}
+}
+
+function _processCallTurn(said, onDone){
+  excitedVal=Math.min(excitedVal+0.7,2);
+  var rect=animaRoot.getBoundingClientRect();
+  for(var i=0;i<4;i++){var hue=(200+i*30)%360;addRipple(rect.width/2+(Math.random()-.5)*100,rect.height/2+(Math.random()-.5)*80,hue);}
+  // 每轮清空，只展示当前1条对话（用户+AI各1条）
+  callMsgsEl.innerHTML='';
+  // 用户消息从下往上出现
+  var youEl=document.createElement('div');
+  youEl.className='call-msg call-msg-you';
+  youEl.textContent=said;
+  callMsgsEl.appendChild(youEl);
+  addMsg(said,'user');
+  // AI 占位气泡
+  var aiEl=document.createElement('div');
+  aiEl.className='call-msg call-msg-ai';
+  aiEl.textContent='……';
+  callMsgsEl.appendChild(aiEl);
+  callDeepSeek(said).then(function(reply){
+    _typeInto(aiEl,reply).then(function(){
+      voiceEnergy=0.5; addMsg(reply,'ai'); excitedVal=Math.min(excitedVal+0.3,2);
+      setTimeout(onDone,900);
+    });
+  });
+}
+
+callBtn.addEventListener('click',()=>callActive?exitCall():enterCall());
+callEndBtn.addEventListener('click',exitCall);
+
+// ── Music module (MP3, auto-play) ──
+(function(){
+var _tracks=['研究生毕设/info.mp3','研究生毕设/sunsetflowerray-a-fond-memory-116759.mp3'];
+var _ti=0;
+var _aud=new Audio(_tracks[_ti]);_aud.loop=true;_aud.volume=0.30;
+var on=false;
+function startM(){_aud.play().catch(function(){});on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}
+function stopM(){_aud.pause();on=false;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.remove('m-on');});}
+function nextTrack(){_ti=(_ti+1)%_tracks.length;_aud.pause();_aud.src=_tracks[_ti];_aud.currentTime=0;if(on)_aud.play().catch(function(){});}
+var auto=false;function tryAuto(){if(auto)return;auto=true;startM();}
+window.addEventListener('load',function(){setTimeout(function(){try{tryAuto();}catch(e){}},400);});
+document.addEventListener('click',function f(){tryAuto();document.removeEventListener('click',f);},{once:true});
+document.getElementById('music-btn').addEventListener('click',function(){on?stopM():startM();});
+document.getElementById('music-next-btn').addEventListener('click',nextTrack);
+var _bc=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('nz_music'):null,_su=0;
+function _sd(m){if(Date.now()<_su)return;if(_bc)_bc.postMessage(m);try{localStorage.setItem('_nzM',JSON.stringify(Object.assign({},m,{_ts:Date.now()})));}catch(e){}}
+function _ap(m){if(!m)return;_su=Date.now()+250;var b=document.getElementById('music-btn'),w=document.getElementById('music-widget');if(!b)return;var io=w&&w.classList.contains('m-on');if(m.t==='play'&&!io)b.click();else if(m.t==='stop'&&io)b.click();}
+if(_bc)_bc.onmessage=function(e){_ap(e.data);};
+window.addEventListener('storage',function(e){if(e.key==='_nzM')try{_ap(JSON.parse(e.newValue));}catch(e){}});
+var _sm=startM,_stm=stopM,_nt=nextTrack;
+startM=function(){_sm();if(Date.now()>=_su)_sd({t:'play'});};
+stopM=function(){_stm();if(Date.now()>=_su)_sd({t:'stop'});};
+nextTrack=function(){_nt();};
+})();
+
+setTimeout(()=>{
+  const resolve=addTypingBubble();
+  callDeepSeek('（请用一句温暖的话主动向我打招呼，表示你感受到了我的到来，不超过50字）').then(reply=>resolve(reply));
+},800);
+
+// ── Voice input toggle (微信风格) ──
+const switchInputBtn=document.getElementById('switch-input-btn');
+const inputToolbar=document.getElementById('input-toolbar');
+const voiceInputArea=document.getElementById('voice-input-area');
+const voiceHoldBtn=document.getElementById('voice-hold-btn');
+const switchIconMic=document.getElementById('switch-icon-mic');
+const switchIconKbd=document.getElementById('switch-icon-kbd');
+const inputRowEl=inputRow;
+let voiceMode=false;
+
+switchInputBtn.addEventListener('click',()=>{
+  voiceMode=!voiceMode;
+  if(voiceMode){
+    inputRowEl.classList.add('voice-mode');
+    switchIconMic.style.display='none';
+    switchIconKbd.style.display='';
+  } else {
+    inputRowEl.classList.remove('voice-mode');
+    switchIconMic.style.display='';
+    switchIconKbd.style.display='none';
+  }
+});
+
+// Hold-to-record (微信 press & release)
+let holdSR=null, holdRecognizing=false;
+async function startHoldRecord(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  await _ensureMic(); // 复用已授权的麦克风，不再弹窗
+  voiceHoldBtn.classList.add('pressing');
+  voiceHoldBtn.textContent='松开 结束';
+  holdSR=new SR();holdSR.lang='zh-CN';holdSR.interimResults=false;
+  holdSR.onresult=e=>{
+    const text=e.results[0][0].transcript.trim();
+    if(text){chatInput.value=text;handleSend();}
+  };
+  holdSR.onend=()=>{holdRecognizing=false;stopHoldRecord();};
+  holdSR.onerror=()=>{stopHoldRecord();};
+  holdSR.start();holdRecognizing=true;
+}
+function stopHoldRecord(){
+  voiceHoldBtn.classList.remove('pressing');
+  voiceHoldBtn.textContent='按住 说话';
+  if(holdSR){try{holdSR.stop();}catch(e){}holdSR=null;}
+}
+voiceHoldBtn.addEventListener('mousedown',startHoldRecord);
+voiceHoldBtn.addEventListener('mouseup',stopHoldRecord);
+voiceHoldBtn.addEventListener('mouseleave',stopHoldRecord);
+voiceHoldBtn.addEventListener('touchstart',e=>{e.preventDefault();startHoldRecord();},{passive:false});
+voiceHoldBtn.addEventListener('touchend',e=>{e.preventDefault();stopHoldRecord();},{passive:false});
+
+// ── Gesture interaction (MediaPipe Hands) ──
+const btnGesture=document.getElementById('btn-gesture');
+const gestureStatus=document.getElementById('gesture-status');
+const gestureVideo=document.getElementById('gesture-video');
+const gestureCamPreview=document.getElementById('gesture-cam-preview');
+let gestureHands=null, gestureCam=null;
+
+// Gesture -> uniforms mapping
+// open hand → uHover=1 + particles follow palm position via uGestureX/Y
+// fist → uHover=0 (rest state)
+// We add two new uniforms for gesture palm tracking
+uniforms.uGestureX={value:0.5};
+uniforms.uGestureY={value:0.5};
+uniforms.uGestureOpen={value:0.0};
+
+// Patch particle shader to add gesture-follow effect
+// (done at runtime by extending the existing pVert logic via a separate small mesh isn't needed —
+//  instead we drive excitedVal + hoverVal from JS based on gesture state)
+
+function isOpenHand(landmarks){
+  // Use wrist-distance: tip farther from wrist than pip = finger extended
+  const wrist=landmarks[0];
+  const tips=[8,12,16,20], pips=[6,10,14,18];
+  let extended=0;
+  for(let i=0;i<4;i++){
+    const td=Math.hypot(landmarks[tips[i]].x-wrist.x,landmarks[tips[i]].y-wrist.y);
+    const pd=Math.hypot(landmarks[pips[i]].x-wrist.x,landmarks[pips[i]].y-wrist.y);
+    if(td>pd*1.1) extended++;
+  }
+  return extended>=2;
+}
+
+async function initGesture(){
+  try{
+    // 只在首次加载脚本
+    if(!window.Hands){
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.min.js';
+      document.head.appendChild(script);
+      await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;});
+    }
+
+    // 只在首次创建 Hands 实例
+    if(!gestureHands){
+      gestureHands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`});
+      gestureHands.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:0.45,minTrackingConfidence:0.35});
+      await gestureHands.initialize();
+
+      gestureHands.onResults(results=>{
+        if(!gestureActive)return;
+        if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
+          gestureHandDetected=true;
+          const lm=results.multiHandLandmarks[0];
+          const open=isOpenHand(lm);
+          const palm=lm[9];
+          gesturePalmX=1-palm.x; // 镜像X
+          gesturePalmY=palm.y;
+
+          if(open!==gestureOpenHand){
+            gestureOpenHand=open;
+            gestureHoverTarget=open?1.0:0.0;
+            gestureStatus.textContent=open?'张开 — 交互态':'握拳 — 常规态';
+          }
+          if(open){
+            const rect=animaRoot.getBoundingClientRect();
+            if(Math.random()<0.15){
+              addRipple(gesturePalmX*rect.width,gesturePalmY*rect.height,210);
+            }
+          }
+        } else {
+          // 未检测到手
+          gestureHandDetected=false;
+          if(gestureOpenHand){
+            gestureOpenHand=false;
+            gestureHoverTarget=0.0;
+          }
+          gestureStatus.textContent='手势检测中…';
+        }
+      });
+    } // end if(!gestureHands)
+
+    // Camera — 复用已有流，避免重复授权弹窗
+    if(!gestureCam){
+      const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:'user'}});
+      gestureCam=stream;
+    }
+    gestureVideo.srcObject=gestureCam;
+
+    await new Promise(r=>gestureVideo.onloadedmetadata=r);
+
+    async function processFrame(){
+      if(!gestureActive){return;}
+      await gestureHands.send({image:gestureVideo});
+      setTimeout(processFrame,80);
+    }
+    processFrame();
+    gestureStatus.classList.add('visible');
+    gestureStatus.textContent='手势检测中…';
+    gestureCamPreview.classList.add('visible');
+  } catch(err){
+    gestureStatus.textContent='摄像头权限不足';
+    gestureStatus.classList.add('visible');
+    setTimeout(()=>gestureStatus.classList.remove('visible'),2500);
+    btnGesture.classList.remove('active');
+    gestureActive=false;
+  }
+}
+
+function stopGesture(){
+  gestureActive=false;
+  gestureHandDetected=false;
+  gestureOpenHand=false;
+  gestureHoverTarget=0.0;
+  gesturePalmX=0.5; gesturePalmY=0.5;
+  // 保留 gestureCam stream，不停止 track，下次启动无需再授权
+  gestureVideo.srcObject=null;
+  gestureStatus.classList.remove('visible');
+  gestureCamPreview.classList.remove('visible');
+  mouseInZone=false;
+  container.style.cursor='default';
+  easeTo(()=>uniforms.uHover.value,v=>uniforms.uHover.value=v,0.0,1000);
+}
+
+btnGesture.addEventListener('click',()=>{
+  gestureActive=!gestureActive;
+  btnGesture.classList.toggle('active',gestureActive);
+  if(gestureActive){initGesture();}
+  else{stopGesture();}
+});
+})();
+</script>
+<script>
+(function(){
+  const canvas=document.getElementById('fluid-canvas');
+  if(!canvas)return;
+  const glP={alpha:true,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:false};
+  let gl=canvas.getContext('webgl2',glP);const isWebGL2=!!gl;
+  if(!isWebGL2)gl=canvas.getContext('webgl',glP)||canvas.getContext('experimental-webgl',glP);
+  if(!gl)return;
+  let halfFloat,supportLinearFiltering;
+  if(isWebGL2){gl.getExtension('EXT_color_buffer_float');supportLinearFiltering=gl.getExtension('OES_texture_float_linear');}
+  else{halfFloat=gl.getExtension('OES_texture_half_float');supportLinearFiltering=gl.getExtension('OES_texture_half_float_linear');}
+  const halfFloatTexType=isWebGL2?gl.HALF_FLOAT:(halfFloat&&halfFloat.HALF_FLOAT_OES);
+  function supportRTF(iF,f,t){const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,iF,4,4,0,f,t,null);const fbo=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);return gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;}
+  function getSF(iF,f,t){if(!supportRTF(iF,f,t)){if(iF===gl.R16F)return getSF(gl.RG16F,gl.RG,t);if(iF===gl.RG16F)return getSF(gl.RGBA16F,gl.RGBA,t);return null;}return{internalFormat:iF,format:f};}
+  let fmtRGBA,fmtRG,fmtR;
+  if(isWebGL2){fmtRGBA=getSF(gl.RGBA16F,gl.RGBA,halfFloatTexType);fmtRG=getSF(gl.RG16F,gl.RG,halfFloatTexType);fmtR=getSF(gl.R16F,gl.RED,halfFloatTexType);}
+  else{fmtRGBA=getSF(gl.RGBA,gl.RGBA,halfFloatTexType);fmtRG=fmtRGBA;fmtR=fmtRGBA;}
+  if(!fmtRGBA)return;
+  const config={SIM_RESOLUTION:128,DYE_RESOLUTION:supportLinearFiltering?512:256,DENSITY_DISSIPATION:3.5,VELOCITY_DISSIPATION:2,PRESSURE:0.1,PRESSURE_ITERATIONS:20,CURL:3,SPLAT_RADIUS:0.25,SPLAT_FORCE:6000};
+  function compileShader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;}
+  function createProgram(vs,fs){const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);return p;}
+  function getUniforms(prog){const n=gl.getProgramParameter(prog,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const name=gl.getActiveUniform(prog,i).name;prog[name]=gl.getUniformLocation(prog,name);}return prog;}
+  const baseVS=compileShader(gl.VERTEX_SHADER,`precision highp float;attribute vec2 aPosition;varying vec2 vUv;varying vec2 vL;varying vec2 vR;varying vec2 vT;varying vec2 vB;uniform vec2 texelSize;void main(){vUv=aPosition*0.5+0.5;vL=vUv-vec2(texelSize.x,0.0);vR=vUv+vec2(texelSize.x,0.0);vT=vUv+vec2(0.0,texelSize.y);vB=vUv-vec2(0.0,texelSize.y);gl_Position=vec4(aPosition,0.0,1.0);}`);
+  const clearProg    =getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;uniform sampler2D uTexture;uniform float value;void main(){gl_FragColor=value*texture2D(uTexture,vUv);}`)));
+  const splatProg    =getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision highp float;precision highp sampler2D;varying vec2 vUv;uniform sampler2D uTarget;uniform float aspectRatio;uniform vec3 color;uniform vec2 point;uniform float radius;void main(){vec2 p=vUv-point.xy;p.x*=aspectRatio;vec3 splat=exp(-dot(p,p)/radius)*color;vec3 base=texture2D(uTarget,vUv).xyz;gl_FragColor=vec4(base+splat,1.0);}`)));
+  const advectionProg=getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision highp float;precision highp sampler2D;varying vec2 vUv;uniform sampler2D uVelocity,uSource;uniform vec2 texelSize,dyeTexelSize;uniform float dt,dissipation;vec4 bilerp(sampler2D sam,vec2 uv,vec2 ts){vec2 st=uv/ts-0.5,iuv=floor(st),fuv=fract(st);vec4 a=texture2D(sam,(iuv+vec2(0.5,0.5))*ts),b=texture2D(sam,(iuv+vec2(1.5,0.5))*ts),c=texture2D(sam,(iuv+vec2(0.5,1.5))*ts),d=texture2D(sam,(iuv+vec2(1.5,1.5))*ts);return mix(mix(a,b,fuv.x),mix(c,d,fuv.x),fuv.y);}void main(){vec2 coord=vUv-dt*bilerp(uVelocity,vUv,texelSize).xy*texelSize;vec4 result=bilerp(uSource,coord,dyeTexelSize);gl_FragColor=result/(1.0+dissipation*dt);}`)));
+  const divergenceProg=getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uVelocity;void main(){float L=texture2D(uVelocity,vL).x,R=texture2D(uVelocity,vR).x,T=texture2D(uVelocity,vT).y,B=texture2D(uVelocity,vB).y;vec2 C=texture2D(uVelocity,vUv).xy;if(vL.x<0.0)L=-C.x;if(vR.x>1.0)R=-C.x;if(vT.y>1.0)T=-C.y;if(vB.y<0.0)B=-C.y;gl_FragColor=vec4(0.5*(R-L+T-B),0,0,1);}`)));
+  const curlProg     =getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uVelocity;void main(){float L=texture2D(uVelocity,vL).y,R=texture2D(uVelocity,vR).y,T=texture2D(uVelocity,vT).x,B=texture2D(uVelocity,vB).x;gl_FragColor=vec4(0.5*(R-L-T+B),0,0,1);}`)));
+  const vorticityProg=getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision highp float;precision highp sampler2D;varying vec2 vUv;varying vec2 vL;varying vec2 vR;varying vec2 vT;varying vec2 vB;uniform sampler2D uVelocity,uCurl;uniform float curl,dt;void main(){float L=texture2D(uCurl,vL).x,R=texture2D(uCurl,vR).x,T=texture2D(uCurl,vT).x,B=texture2D(uCurl,vB).x,C=texture2D(uCurl,vUv).x;vec2 force=0.5*vec2(abs(T)-abs(B),abs(R)-abs(L));force/=length(force)+0.0001;force*=curl*C;force.y*=-1.0;vec2 vel=texture2D(uVelocity,vUv).xy;vel+=force*dt;vel=min(max(vel,-1000.0),1000.0);gl_FragColor=vec4(vel,0,1);}`)));
+  const pressureProg =getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uPressure,uDivergence;void main(){float L=texture2D(uPressure,vL).x,R=texture2D(uPressure,vR).x,T=texture2D(uPressure,vT).x,B=texture2D(uPressure,vB).x,div=texture2D(uDivergence,vUv).x;gl_FragColor=vec4((L+R+B+T-div)*0.25,0,0,1);}`)));
+  const gradSubProg  =getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision mediump float;precision mediump sampler2D;varying highp vec2 vUv;varying highp vec2 vL;varying highp vec2 vR;varying highp vec2 vT;varying highp vec2 vB;uniform sampler2D uPressure,uVelocity;void main(){float L=texture2D(uPressure,vL).x,R=texture2D(uPressure,vR).x,T=texture2D(uPressure,vT).x,B=texture2D(uPressure,vB).x;vec2 vel=texture2D(uVelocity,vUv).xy;vel.xy-=vec2(R-L,T-B);gl_FragColor=vec4(vel,0,1);}`)));
+  const displayProg  =getUniforms(createProgram(baseVS,compileShader(gl.FRAGMENT_SHADER,`precision highp float;precision highp sampler2D;varying vec2 vUv,vL,vR,vT,vB;uniform sampler2D uTexture;uniform vec2 texelSize;void main(){vec3 c=texture2D(uTexture,vUv).rgb;float dx=length(texture2D(uTexture,vR).rgb)-length(texture2D(uTexture,vL).rgb);float dy=length(texture2D(uTexture,vT).rgb)-length(texture2D(uTexture,vB).rgb);vec3 n=normalize(vec3(dx,dy,length(texelSize)));c*=clamp(dot(n,vec3(0,0,1))+0.7,0.7,1.0);gl_FragColor=vec4(c,max(c.r,max(c.g,c.b)));}`)));
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,-1,1,1,1,1,-1]),gl.STATIC_DRAW);
+  const idx=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,idx);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array([0,1,2,0,2,3]),gl.STATIC_DRAW);
+  gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(0);
+  function blit(target){if(target==null){gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);gl.bindFramebuffer(gl.FRAMEBUFFER,null);}else{gl.viewport(0,0,target.width,target.height);gl.bindFramebuffer(gl.FRAMEBUFFER,target.fbo);}gl.drawElements(gl.TRIANGLES,6,gl.UNSIGNED_SHORT,0);}
+  function createFBO(w,h,iF,f,t,param){gl.activeTexture(gl.TEXTURE0);const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,param);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,param);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texImage2D(gl.TEXTURE_2D,0,iF,w,h,0,f,t,null);const fbo=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fbo);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);gl.viewport(0,0,w,h);gl.clear(gl.COLOR_BUFFER_BIT);return{texture:tex,fbo,width:w,height:h,texelSizeX:1/w,texelSizeY:1/h,attach(id){gl.activeTexture(gl.TEXTURE0+id);gl.bindTexture(gl.TEXTURE_2D,tex);return id;}};}
+  function createDoubleFBO(w,h,iF,f,t,param){let f1=createFBO(w,h,iF,f,t,param),f2=createFBO(w,h,iF,f,t,param);return{width:w,height:h,texelSizeX:f1.texelSizeX,texelSizeY:f1.texelSizeY,get read(){return f1;},set read(v){f1=v;},get write(){return f2;},set write(v){f2=v;},swap(){const tmp=f1;f1=f2;f2=tmp;}};}
+  function getResolution(res){let ar=gl.drawingBufferWidth/gl.drawingBufferHeight;if(ar<1)ar=1/ar;const mn=Math.round(res),mx=Math.round(res*ar);return gl.drawingBufferWidth>gl.drawingBufferHeight?{width:mx,height:mn}:{width:mn,height:mx};}
+  let dye,velocity,divergence,curl,pressure;
+  function initFramebuffers(){const simRes=getResolution(config.SIM_RESOLUTION),dyeRes=getResolution(config.DYE_RESOLUTION);const tt=halfFloatTexType,filt=supportLinearFiltering?gl.LINEAR:gl.NEAREST;gl.disable(gl.BLEND);dye=createDoubleFBO(dyeRes.width,dyeRes.height,fmtRGBA.internalFormat,fmtRGBA.format,tt,filt);velocity=createDoubleFBO(simRes.width,simRes.height,(fmtRG||fmtRGBA).internalFormat,(fmtRG||fmtRGBA).format,tt,filt);divergence=createFBO(simRes.width,simRes.height,(fmtR||fmtRGBA).internalFormat,(fmtR||fmtRGBA).format,tt,gl.NEAREST);curl=createFBO(simRes.width,simRes.height,(fmtR||fmtRGBA).internalFormat,(fmtR||fmtRGBA).format,tt,gl.NEAREST);pressure=createDoubleFBO(simRes.width,simRes.height,(fmtR||fmtRGBA).internalFormat,(fmtR||fmtRGBA).format,tt,gl.NEAREST);}
+  function scaleByPixelRatio(v){return Math.floor(v*(window.devicePixelRatio||1));}
+  function correctRadius(r){const ar=canvas.width/canvas.height;return ar>1?r*ar:r;}
+  function correctDX(d){const ar=canvas.width/canvas.height;return ar<1?d*ar:d;}
+  function correctDY(d){const ar=canvas.width/canvas.height;return ar>1?d/ar:d;}
+  function HSVtoRGB(h,s,v){const i=~~(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);const m=[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]];const[r,g,b]=m[i%6];return{r,g,b};}
+  function generateColor(){const h=0.15+Math.random()*0.52;const c=HSVtoRGB(h,0.55,0.82);c.r*=0.15;c.g*=0.15;c.b*=0.15;return c;}
+  function splat(x,y,dx,dy,color){gl.useProgram(splatProg);gl.uniform2f(splatProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(splatProg.uTarget,velocity.read.attach(0));gl.uniform1f(splatProg.aspectRatio,canvas.width/canvas.height);gl.uniform2f(splatProg.point,x,y);gl.uniform3f(splatProg.color,dx,dy,0);gl.uniform1f(splatProg.radius,correctRadius(config.SPLAT_RADIUS/100));blit(velocity.write);velocity.swap();gl.uniform2f(splatProg.texelSize,dye.read.texelSizeX,dye.read.texelSizeY);gl.uniform1i(splatProg.uTarget,dye.read.attach(0));gl.uniform3f(splatProg.color,color.r,color.g,color.b);blit(dye.write);dye.swap();}
+  function step(dt){gl.disable(gl.BLEND);gl.useProgram(curlProg);gl.uniform2f(curlProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(curlProg.uVelocity,velocity.read.attach(0));blit(curl);gl.useProgram(vorticityProg);gl.uniform2f(vorticityProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(vorticityProg.uVelocity,velocity.read.attach(0));gl.uniform1i(vorticityProg.uCurl,curl.attach(1));gl.uniform1f(vorticityProg.curl,config.CURL);gl.uniform1f(vorticityProg.dt,dt);blit(velocity.write);velocity.swap();gl.useProgram(divergenceProg);gl.uniform2f(divergenceProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(divergenceProg.uVelocity,velocity.read.attach(0));blit(divergence);gl.useProgram(clearProg);gl.uniform2f(clearProg.texelSize,pressure.read.texelSizeX,pressure.read.texelSizeY);gl.uniform1i(clearProg.uTexture,pressure.read.attach(0));gl.uniform1f(clearProg.value,config.PRESSURE);blit(pressure.write);pressure.swap();gl.useProgram(pressureProg);gl.uniform2f(pressureProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(pressureProg.uDivergence,divergence.attach(0));for(let i=0;i<config.PRESSURE_ITERATIONS;i++){gl.uniform1i(pressureProg.uPressure,pressure.read.attach(1));blit(pressure.write);pressure.swap();}gl.useProgram(gradSubProg);gl.uniform2f(gradSubProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(gradSubProg.uPressure,pressure.read.attach(0));gl.uniform1i(gradSubProg.uVelocity,velocity.read.attach(1));blit(velocity.write);velocity.swap();gl.useProgram(advectionProg);gl.uniform2f(advectionProg.texelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform2f(advectionProg.dyeTexelSize,velocity.read.texelSizeX,velocity.read.texelSizeY);gl.uniform1i(advectionProg.uVelocity,velocity.read.attach(0));gl.uniform1i(advectionProg.uSource,velocity.read.attach(0));gl.uniform1f(advectionProg.dt,dt);gl.uniform1f(advectionProg.dissipation,config.VELOCITY_DISSIPATION);blit(velocity.write);velocity.swap();gl.uniform2f(advectionProg.dyeTexelSize,dye.read.texelSizeX,dye.read.texelSizeY);gl.uniform1i(advectionProg.uVelocity,velocity.read.attach(0));gl.uniform1i(advectionProg.uSource,dye.read.attach(1));gl.uniform1f(advectionProg.dissipation,config.DENSITY_DISSIPATION);blit(dye.write);dye.swap();}
+  function render(){gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.enable(gl.BLEND);gl.useProgram(displayProg);gl.uniform2f(displayProg.texelSize,1/gl.drawingBufferWidth,1/gl.drawingBufferHeight);gl.uniform1i(displayProg.uTexture,dye.read.attach(0));blit(null);}
+  let lastUpdateTime=Date.now(),animId;
+  const ptr={texcoordX:0,texcoordY:0,prevTexcoordX:0,prevTexcoordY:0,deltaX:0,deltaY:0,moved:false,color:generateColor()};
+  let firstMove=false;
+  function updatePointer(x,y){ptr.prevTexcoordX=ptr.texcoordX;ptr.prevTexcoordY=ptr.texcoordY;ptr.texcoordX=x/canvas.width;ptr.texcoordY=1-y/canvas.height;ptr.deltaX=correctDX(ptr.texcoordX-ptr.prevTexcoordX);ptr.deltaY=correctDY(ptr.texcoordY-ptr.prevTexcoordY);ptr.moved=Math.abs(ptr.deltaX)>0||Math.abs(ptr.deltaY)>0;}
+  function updateFrame(){const now=Date.now(),dt=Math.min((now-lastUpdateTime)/1000,0.016666);lastUpdateTime=now;const w=scaleByPixelRatio(canvas.clientWidth),h=scaleByPixelRatio(canvas.clientHeight);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;initFramebuffers();}if(ptr.moved){ptr.moved=false;splat(ptr.texcoordX,ptr.texcoordY,ptr.deltaX*config.SPLAT_FORCE,ptr.deltaY*config.SPLAT_FORCE,ptr.color);}step(dt);render();animId=requestAnimationFrame(updateFrame);}
+  canvas.width=scaleByPixelRatio(canvas.clientWidth);canvas.height=scaleByPixelRatio(canvas.clientHeight);
+  initFramebuffers();
+  window.addEventListener('mousemove',e=>{const x=scaleByPixelRatio(e.clientX),y=scaleByPixelRatio(e.clientY);if(!firstMove){ptr.texcoordX=x/canvas.width;ptr.texcoordY=1-y/canvas.height;ptr.prevTexcoordX=ptr.texcoordX;ptr.prevTexcoordY=ptr.texcoordY;ptr.color=generateColor();firstMove=true;return;}updatePointer(x,y);});
+  window.addEventListener('touchmove',e=>{const t=e.targetTouches[0];updatePointer(scaleByPixelRatio(t.clientX),scaleByPixelRatio(t.clientY));},{passive:true});
+  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{canvas.width=scaleByPixelRatio(canvas.clientWidth);canvas.height=scaleByPixelRatio(canvas.clientHeight);initFramebuffers();},300);});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelAnimationFrame(animId);else{lastUpdateTime=Date.now();animId=requestAnimationFrame(updateFrame);}});
+  animId=requestAnimationFrame(updateFrame);
+})();
+
+// ── 自定义光标 ──
+(function(){
+  var c=document.getElementById('custom-cursor');
+  var im=document.getElementById('cursor-img');
+  if(!c||!im)return;
+  var N='研究生毕设/鼠标normal.png',H='研究生毕设/鼠标hover.png';
+  var hovering=false;
+  function isInteractive(el){
+    while(el&&el!==document.body){
+      var t=el.tagName;
+      if(t==='A'||t==='BUTTON'||t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||t==='LABEL')return true;
+      if(el.getAttribute&&el.getAttribute('role')==='button')return true;
+      try{if(window.getComputedStyle(el).cursor==='pointer')return true;}catch(e){}
+      el=el.parentElement;
+    }
+    return false;
+  }
+  document.addEventListener('mousemove',function(e){
+    c.style.transform='translate('+(e.clientX-17)+'px,'+(e.clientY-17)+'px)';
+    c.classList.add('show');
+  });
+  document.addEventListener('mouseleave',function(){c.classList.remove('show');});
+  document.addEventListener('mouseover',function(e){hovering=isInteractive(e.target);im.src=hovering?H:N;});
+  document.addEventListener('mousedown',function(){im.src=H;});
+  document.addEventListener('mouseup',function(){im.src=hovering?H:N;});
+})();
+</script>
+</body>
+</html>
