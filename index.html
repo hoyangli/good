@@ -749,7 +749,9 @@
       themeToggle.innerHTML = isDark
         ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
         : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 14.0784C20.3003 14.7189 18.9301 15.0821 17.4751 15.0821C12.7491 15.0821 8.91792 11.2509 8.91792 6.52485C8.91792 5.06986 9.28105 3.69968 9.92163 2.5C5.66765 3.49698 2.5 7.31513 2.5 11.8731C2.5 17.1899 6.8101 21.5 12.1269 21.5C16.6849 21.5 20.503 18.3324 21.5 14.0784Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      localStorage.setItem('nz_dark', isDark ? '1' : '0');
     });
+    try{if(localStorage.getItem('nz_dark')==='1'){document.body.classList.add('dark');themeToggle.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';}}catch(e){}
 
     // 凝固与TA的瞬间 → 历史记录页
     document.getElementById('btnMoment').addEventListener('click', () => {
@@ -1285,14 +1287,21 @@
   <script>
 (function(){
 var _tracks=['研究生毕设/info.mp3','研究生毕设/sunsetflowerray-a-fond-memory-116759.mp3'];
-var _ti=0;
+var _s={ti:0,pos:0,ts:0,on:false};try{_s={ti:parseInt(localStorage.getItem('nz_ti')||'0'),pos:parseFloat(localStorage.getItem('nz_pos')||'0'),ts:parseInt(localStorage.getItem('nz_ts')||'0'),on:localStorage.getItem('nz_on')==='1'};}catch(e){}
+var _ti=_s.ti%2;
 var _aud=new Audio(_tracks[_ti]);_aud.loop=true;_aud.volume=0.30;
 var on=false;
-function startM(){_aud.play().catch(function(){});on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}
+var _seeked=false;
+function _applySeek(){if(_seeked||!_s.ts)return;_seeked=true;var elapsed=Math.min((Date.now()-_s.ts)/1000,8);if(_aud.duration>0){_aud.currentTime=(_s.pos+elapsed)%_aud.duration;}}
+_aud.addEventListener('loadedmetadata',_applySeek,{once:true});
+function _saveState(){try{localStorage.setItem('nz_ti',_ti);localStorage.setItem('nz_pos',_aud.currentTime);localStorage.setItem('nz_ts',Date.now());localStorage.setItem('nz_on',on?'1':'0');}catch(e){}}
+window.addEventListener('pagehide',_saveState);window.addEventListener('beforeunload',_saveState);
+function startM(){_applySeek();_aud.play().catch(function(){});on=true;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.add('m-on');});document.querySelectorAll('.m-label').forEach(function(e){e.textContent='♪';});}
 function stopM(){_aud.pause();on=false;document.querySelectorAll('.m-widget').forEach(function(w){w.classList.remove('m-on');});}
-function nextTrack(){_ti=(_ti+1)%_tracks.length;_aud.pause();_aud.src=_tracks[_ti];_aud.currentTime=0;if(on)_aud.play().catch(function(){});}
+function nextTrack(){_seeked=true;_ti=(_ti+1)%_tracks.length;_aud.pause();_aud.src=_tracks[_ti];_aud.currentTime=0;if(on)_aud.play().catch(function(){});}
 var auto=false;function tryAuto(){if(auto)return;auto=true;startM();}
 window.addEventListener('load',function(){setTimeout(function(){try{tryAuto();}catch(e){}},400);});
+document.addEventListener('pointerdown',function f(){tryAuto();document.removeEventListener('pointerdown',f);},{once:true});
 document.addEventListener('click',function f(){tryAuto();document.removeEventListener('click',f);},{once:true});
 document.querySelectorAll('.m-play').forEach(function(b){b.addEventListener('click',function(){on?stopM():startM();});});
 document.querySelectorAll('.m-next').forEach(function(b){b.addEventListener('click',nextTrack);});
