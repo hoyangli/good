@@ -1363,13 +1363,22 @@ nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
     var rt=setInterval(function(){ripples.push({r:2,o:0.6});},550);
     ripples.push({r:2,o:0.6});
     tick();
+    function enterSite(){
+      if(typeof tryAuto==='function')tryAuto();
+      loader.classList.add('loader-done');
+      setTimeout(function(){cancelAnimationFrame(animId);loader.remove();},750);
+    }
     window.addEventListener('load',function(){
       done=true;pct=100;pctEl.textContent='100%';
       clearInterval(rt);
       setTimeout(function(){
-        loader.classList.add('loader-done');
-        setTimeout(function(){cancelAnimationFrame(animId);loader.remove();},750);
-      },350);
+        pctEl.textContent='点击进入';
+        pctEl.style.letterSpacing='4px';
+        pctEl.style.color='rgba(40,70,40,0.65)';
+        pctEl.style.cursor='pointer';
+        loader.style.cursor='pointer';
+        loader.addEventListener('pointerdown',enterSite,{once:true});
+      },400);
     });
   })();
   </script>
