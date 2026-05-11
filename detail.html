@@ -973,7 +973,7 @@
     <!-- 顶部 -->
     <div class="top-bar">
       <div class="nav-left">
-        <button class="back-btn" onclick="window.location.href='index.html'">
+        <button class="back-btn">
           <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9.21313 20H34.9999" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
             <path d="M19.0454 31.5454L8.38405 20.884C7.89589 20.3958 7.8959 19.6044 8.38406 19.1162L19.0454 8.4551" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
@@ -1570,6 +1570,7 @@
     // 返回首页按钮涟漪效果
     document.querySelector('.back-btn').addEventListener('click', (e) => {
       e.preventDefault();
+      sessionStorage.setItem('nz_loaded', '1');
       document.body.classList.add('page-fade-out');
       setTimeout(() => {
         window.location.href = 'index.html';

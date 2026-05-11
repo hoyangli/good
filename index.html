@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+  <script>if(!sessionStorage.getItem('nz_loaded'))document.documentElement.classList.add('show-loader');window.addEventListener('pageshow',function(e){if(e.persisted&&sessionStorage.getItem('nz_loaded')){var l=document.getElementById('page-loader');if(l)l.style.display='none';}});</script>
   <style>
     @font-face {
       font-family: 'FZBYKSJW';
@@ -646,10 +647,11 @@
     #custom-cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:99999;opacity:0;transition:opacity .15s;filter:drop-shadow(0 0 5px rgba(140,210,120,.85)) drop-shadow(0 0 12px rgba(140,210,120,.40));will-change:transform;}
     #custom-cursor.show{opacity:1;}
     #custom-cursor img{width:35px;height:35px;display:block;}
-    #page-loader{position:fixed;inset:0;background:#fff;z-index:99998;display:flex;align-items:center;justify-content:center;transition:opacity .7s ease;}
+    #page-loader{position:fixed;inset:0;background:#fff;z-index:99998;display:none;align-items:center;justify-content:center;transition:opacity .7s ease;}
+    html.show-loader #page-loader{display:flex;}
     #page-loader.loader-done{opacity:0;pointer-events:none;}
-    #loader-wrap{position:relative;width:280px;height:280px;}
-    #loader-canvas{display:block;width:280px;height:280px;}
+    #loader-wrap{position:relative;width:300px;height:300px;}
+    #loader-canvas{display:block;width:300px;height:300px;}
     #loader-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;letter-spacing:3px;color:rgba(40,70,40,.45);white-space:nowrap;pointer-events:none;}
   </style>
 </head>
@@ -1343,32 +1345,36 @@ nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
     var loader=document.getElementById('page-loader');
     var pctEl=document.getElementById('loader-pct');
     if(!canvas||!loader)return;
-    var W=280,H=280;
+    if(!document.documentElement.classList.contains('show-loader')){return;}
+    var W=300,H=300;
     canvas.width=W*2;canvas.height=H*2;
     canvas.style.width=W+'px';canvas.style.height=H+'px';
     var ctx=canvas.getContext('2d');ctx.scale(2,2);
     var cx=W/2,cy=H/2,ripples=[],pct=0,done=false,animId;
-    var INNER=36; // 中心留白半径，文字区域不绘制涟漪
+    var INNER=100;
     function tick(){
       ctx.clearRect(0,0,W,H);
       for(var i=ripples.length-1;i>=0;i--){
         var r=ripples[i];
-        if(r.r>=INNER){
+        r.life++;
+        var o=Math.sin(r.life/r.maxLife*Math.PI)*0.45;
+        if(r.r>=INNER&&o>0){
           ctx.beginPath();ctx.arc(cx,cy,r.r,0,Math.PI*2);
-          ctx.strokeStyle='rgba(60,100,60,'+r.o.toFixed(2)+')';
+          ctx.strokeStyle='rgba(60,100,60,'+o.toFixed(3)+')';
           ctx.lineWidth=0.7;ctx.stroke();
         }
-        r.r+=0.45;r.o-=0.003;
-        if(r.o<=0)ripples.splice(i,1);
+        r.r+=0.45;
+        if(r.life>=r.maxLife)ripples.splice(i,1);
       }
       if(!done){pct+=(92-pct)*0.018;pctEl.textContent=Math.floor(pct)+'%';}
       animId=requestAnimationFrame(tick);
     }
-    var rt=setInterval(function(){ripples.push({r:INNER,o:0.55});},700);
-    ripples.push({r:INNER,o:0.55});
+    var rt=setInterval(function(){ripples.push({r:INNER,life:0,maxLife:220});},2400);
+    ripples.push({r:INNER,life:0,maxLife:220});
     tick();
     function enterSite(){
       clearInterval(rt);
+      sessionStorage.setItem('nz_loaded','1');
       if(typeof tryAuto==='function')tryAuto();
       loader.classList.add('loader-done');
       setTimeout(function(){cancelAnimationFrame(animId);loader.remove();},750);
