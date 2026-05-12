@@ -389,6 +389,19 @@
       border-color: rgba(255, 255, 255, 0.45);
     }
 
+    /* 大屏幕适配 ≥1800px */
+    @media (min-width: 1800px) {
+      .navbar { padding: 28px 80px; }
+      .nav-right { gap: 24px; }
+      .btn-moment { padding: 12px 32px; font-size: 15px; }
+      .btn-theme { padding: 12px; }
+      .nav-logo { height: 36px; }
+      .nav-center-icon { height: 42px; }
+      .hero-content { transform: scale(2.2); }
+      #bottom-bar { padding: 48px 80px; }
+      #bottom-note-line1, #bottom-note-line2, #bottom-center, .bottom-link { font-size: 16px; }
+    }
+
     /* 响应式 */
     @media (max-width: 768px) {
       .hero-title {
@@ -650,8 +663,8 @@
     #page-loader{position:fixed;top:0;right:0;bottom:0;left:0;width:100%;height:100%;background:#fff;z-index:99998;display:none;align-items:center;justify-content:center;transition:opacity .7s ease;}
     html.show-loader #page-loader{display:flex;}
     #page-loader.loader-done{opacity:0;pointer-events:none;}
-    #loader-wrap{position:relative;width:300px;height:300px;}
-    #loader-canvas{display:block;width:300px;height:300px;}
+    #loader-wrap{position:relative;width:600px;height:600px;}
+    #loader-canvas{display:block;width:600px;height:600px;}
     #loader-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:12px;letter-spacing:3px;color:rgba(40,70,40,.45);white-space:nowrap;pointer-events:none;}
   </style>
 </head>
@@ -1346,12 +1359,12 @@ nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
     var pctEl=document.getElementById('loader-pct');
     if(!canvas||!loader)return;
     if(!document.documentElement.classList.contains('show-loader')){return;}
-    var W=300,H=300;
+    var W=600,H=600;
     canvas.width=W*2;canvas.height=H*2;
     canvas.style.width=W+'px';canvas.style.height=H+'px';
     var ctx=canvas.getContext('2d');ctx.scale(2,2);
     var cx=W/2,cy=H/2,ripples=[],pct=0,done=false,animId;
-    var INNER=100;
+    var INNER=200;
     function tick(){
       ctx.clearRect(0,0,W,H);
       for(var i=ripples.length-1;i>=0;i--){
@@ -1372,14 +1385,16 @@ nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
     var rt=setInterval(function(){ripples.push({r:INNER,life:0,maxLife:220});},2400);
     ripples.push({r:INNER,life:0,maxLife:220});
     tick();
+    var _entered=false;
     function enterSite(){
+      if(_entered)return;_entered=true;
       clearInterval(rt);
       sessionStorage.setItem('nz_loaded','1');
-      if(typeof tryAuto==='function')tryAuto();
+      try{if(typeof tryAuto==='function')tryAuto();}catch(e){}
       loader.classList.add('loader-done');
       setTimeout(function(){cancelAnimationFrame(animId);loader.remove();},750);
     }
-    window.addEventListener('load',function(){
+    function setupEnter(){
       done=true;pct=100;
       setTimeout(function(){
         pctEl.textContent='点击进入';
@@ -1387,9 +1402,13 @@ nextTrack=function(){_nt();if(Date.now()>=_su)_sd({t:'next',ti:ti});};
         pctEl.style.color='rgba(40,70,40,0.65)';
         pctEl.style.cursor='pointer';
         loader.style.cursor='pointer';
-        loader.addEventListener('pointerdown',enterSite,{once:true});
+        loader.addEventListener('pointerdown',enterSite);
+        loader.addEventListener('click',enterSite);
+        loader.addEventListener('touchstart',enterSite);
       },400);
-    });
+    }
+    if(document.readyState==='complete'){setupEnter();}
+    else{window.addEventListener('load',setupEnter);}
   })();
   </script>
 </body>
