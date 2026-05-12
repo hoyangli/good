@@ -1812,7 +1812,7 @@ function _startCallSR(SR){
   if(!callActive)return;
   var r=new SR(); callSR=r;
   r.lang='zh-CN'; r.interimResults=true; r.continuous=true;
-  var finalBuf='', silTimer=null, isProcessing=false;
+  var finalBuf='', interimBuf='', silTimer=null, isProcessing=false;
 
   /* 回复完毕：静默等待，不清消息，不立即显示"正在聆听" */
   function afterReply(){
@@ -1837,26 +1837,24 @@ function _startCallSR(SR){
       if(e.results[i].isFinal) newFinal+=e.results[i][0].transcript;
       else interim+=e.results[i][0].transcript;
     }
-    if(newFinal) finalBuf+=newFinal;
-    var display=(finalBuf+interim).trim();
+    if(newFinal){ finalBuf+=newFinal; interimBuf=''; }
+    else { interimBuf=interim; }
+    var display=(finalBuf+interimBuf).trim();
     if(display){
-      // 用户开口了——才显示聆听指示器和 interim 文字
       callListening.classList.add('visible');
       callInterimEl.textContent=display;
       voiceEnergy=Math.min(0.5+display.length*.03,1.6);
     }
-    if(newFinal){
-      clearTimeout(silTimer);
-      silTimer=setTimeout(function(){
-        var said=finalBuf.trim();
-        if(!said||isProcessing)return;
-        isProcessing=true; finalBuf=''; clearTimeout(silTimer);
-        callListening.classList.remove('visible');
-        callInterimEl.textContent='';
-        callStatus.textContent='';
-        _processCallTurn(said, afterReply);
-      },1200);
-    }
+    clearTimeout(silTimer);
+    silTimer=setTimeout(function(){
+      var said=(finalBuf||interimBuf).trim();
+      if(!said||isProcessing)return;
+      isProcessing=true; finalBuf=''; interimBuf=''; clearTimeout(silTimer);
+      callListening.classList.remove('visible');
+      callInterimEl.textContent='';
+      callStatus.textContent='';
+      _processCallTurn(said, afterReply);
+    }, newFinal ? 1200 : 2000);
   };
 
   r.onend=function(){
