@@ -625,6 +625,38 @@ body.dark .bottom-link:hover {
 }
 #custom-cursor.show{opacity:1;}
 #custom-cursor img{width:35px;height:35px;display:block;}
+
+@media (min-width: 1800px) {
+  /* 顶部栏 */
+  #top-bar { padding: 28px 56px 0; }
+  #artwork-title { font-size: 32px; }
+  #artwork-sub { font-size: 26px; }
+  .back-btn, .back-btn svg { width: 44px; height: 44px; }
+  #top-right { gap: 24px; }
+  #freeze-btn { font-size: 16px; padding: 14px 32px; }
+  /* 音乐组件：放大以便大屏点击 */
+  .m-widget { width: 82px; height: 50px; border-radius: 25px; }
+  .m-widget .m-ctrl svg { width: 16px; height: 16px; }
+  .m-ctrls { gap: 8px; padding: 0 10px; }
+  .m-ctrl { padding: 5px; }
+  /* 对话区：更宽以适配大屏比例 */
+  #input-row { width: clamp(520px, 38vw, 960px); left: clamp(28px, 3vw, 56px); }
+  #chat-toggle-btn { left: clamp(28px, 3vw, 56px); }
+  #messages-area { left: clamp(28px, 3vw, 56px); width: clamp(520px, 38vw, 960px); }
+  /* 消息气泡 */
+  .msg { max-width: min(65%, 580px); font-size: clamp(14px, 1.1vw, 16px); }
+  .msg-label { font-size: clamp(11px, 0.9vw, 13px); }
+  #chat-input { font-size: 15px; }
+  /* 右侧按钮 */
+  .side-btn { width: 54px; height: 54px; font-size: 22px; }
+  /* 通话模式 */
+  #call-zone { font-size: 16px; }
+  #call-interim { font-size: 16px; }
+  #call-end-btn { width: 68px; height: 68px; }
+  /* 底部栏 */
+  #bottom-bar { padding: 48px 80px; }
+  #bottom-note-line1, #bottom-note-line2, #bottom-center, .bottom-link { font-size: 16px; }
+}
 </style>
 </head>
 <body>
@@ -2140,7 +2172,8 @@ btnGesture.addEventListener('click',()=>{
   if(isWebGL2){fmtRGBA=getSF(gl.RGBA16F,gl.RGBA,halfFloatTexType);fmtRG=getSF(gl.RG16F,gl.RG,halfFloatTexType);fmtR=getSF(gl.R16F,gl.RED,halfFloatTexType);}
   else{fmtRGBA=getSF(gl.RGBA,gl.RGBA,halfFloatTexType);fmtRG=fmtRGBA;fmtR=fmtRGBA;}
   if(!fmtRGBA)return;
-  const config={SIM_RESOLUTION:128,DYE_RESOLUTION:supportLinearFiltering?512:256,DENSITY_DISSIPATION:3.5,VELOCITY_DISSIPATION:2,PRESSURE:0.1,PRESSURE_ITERATIONS:20,CURL:3,SPLAT_RADIUS:0.25,SPLAT_FORCE:6000};
+  const _srf=window.innerWidth>1800?window.innerWidth/1536:1;
+  const config={SIM_RESOLUTION:128,DYE_RESOLUTION:supportLinearFiltering?512:256,DENSITY_DISSIPATION:3.5,VELOCITY_DISSIPATION:2,PRESSURE:0.1,PRESSURE_ITERATIONS:20,CURL:3,SPLAT_RADIUS:0.25*_srf,SPLAT_FORCE:Math.round(6000*_srf)};
   function compileShader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;}
   function createProgram(vs,fs){const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);return p;}
   function getUniforms(prog){const n=gl.getProgramParameter(prog,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const name=gl.getActiveUniform(prog,i).name;prog[name]=gl.getUniformLocation(prog,name);}return prog;}

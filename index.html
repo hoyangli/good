@@ -392,14 +392,19 @@
     /* 大屏幕适配 ≥1800px */
     @media (min-width: 1800px) {
       .navbar { padding: 28px 80px; }
-      .nav-right { gap: 24px; }
-      .btn-moment { padding: 12px 32px; font-size: 15px; }
-      .btn-theme { padding: 12px; }
-      .nav-logo { height: 36px; }
-      .nav-center-icon { height: 42px; }
+      .nav-right { gap: 28px; }
+      .btn-moment { padding: 14px 36px; font-size: 16px; }
+      .btn-theme { padding: 14px; }
+      .nav-logo { height: 40px; }
+      .nav-center-icon { height: 48px; }
       .hero-content { transform: scale(2.2); }
       #bottom-bar { padding: 48px 80px; }
       #bottom-note-line1, #bottom-note-line2, #bottom-center, .bottom-link { font-size: 16px; }
+      /* 音乐组件：放大以便大屏点击 */
+      .m-widget { width: 82px; height: 50px; border-radius: 25px; }
+      .m-widget .m-ctrl svg { width: 16px; height: 16px; }
+      .m-ctrls { gap: 8px; padding: 0 10px; }
+      .m-ctrl { padding: 5px; }
     }
 
     /* 响应式 */
@@ -902,11 +907,12 @@
       const canvas = document.getElementById('fluid-canvas');
       if (!canvas) return;
 
+      const _srf = window.innerWidth > 1800 ? window.innerWidth / 1536 : 1;
       const config = {
         SIM_RESOLUTION: 128, DYE_RESOLUTION: 1440, CAPTURE_RESOLUTION: 512,
         DENSITY_DISSIPATION: 3.5, VELOCITY_DISSIPATION: 2,
         PRESSURE: 0.1, PRESSURE_ITERATIONS: 20, CURL: 3,
-        SPLAT_RADIUS: 0.2, SPLAT_FORCE: 6000,
+        SPLAT_RADIUS: 0.2 * _srf, SPLAT_FORCE: Math.round(6000 * _srf),
         SHADING: true, COLOR_UPDATE_SPEED: 10,
         BACK_COLOR: { r: 0, g: 0, b: 0 }, TRANSPARENT: true,
         RAINBOW_MODE: true, COLOR: '#ffffff'
