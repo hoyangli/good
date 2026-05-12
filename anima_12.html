@@ -1212,8 +1212,8 @@ const glowFragmentShader = `
         float dist = length(center) * 2.0; 
         float angle = atan(center.y, center.x);
 
-        float shapeDist = dist + cos(angle * uSymmetry) * (uTension * 0.5); 
-        float alpha = gaussian(shapeDist, 0.6);
+        float shapeDist = dist + cos(angle * uSymmetry) * (uTension * 0.5);
+        float alpha = gaussian(shapeDist, 0.6) * smoothstep(1.45, 0.65, dist);
         
         float colorNoise = snoise(vec2(dist * 1.5, angle * 1.0 - uTime * uSpeed * 2.0)) * 0.4;
         float dist_perturbed = dist + colorNoise;
@@ -1304,8 +1304,9 @@ const particleFragmentShader = `
     void main() {
         vec2 coord = gl_PointCoord - vec2(0.5);
         float dist = length(coord);
-        float circle = exp(-(dist * dist) / (2.0 * 0.05));
-        if (circle < 0.01) discard;
+        if (dist >= 0.5) discard;
+        float circle = smoothstep(0.5, 0.0, dist) * exp(-(dist * dist) / (2.0 * 0.05));
+        if (circle < 0.005) discard;
         gl_FragColor = vec4(vColor, vAlpha * circle);
     }
 `;
